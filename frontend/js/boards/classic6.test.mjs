@@ -4,7 +4,8 @@ import {
   getAbsolutePositionForBoard,
   isJumpPointForBoard,
   getOpponentForBoard,
-  getFlightCrossPositionForBoard
+  getFlightCrossPositionForBoard,
+  resolveBoardIdForPlayers
 } from './boardConfig.js';
 
 const b = getBoardDefinition('classic6');
@@ -16,6 +17,13 @@ assert.equal(b.finishStart, 77);
 assert.equal(b.finishEnd, 82);
 assert.deepEqual(b.players, [1, 2, 3, 4, 5, 6]);
 assert.deepEqual(b.opponents, { 1:4, 2:5, 3:6, 4:1, 5:2, 6:3 });
+
+// 棋盘类型由实际参与人数/阵营决定，不由“房间最大容量”决定。
+assert.equal(resolveBoardIdForPlayers([1, 2, 3, 4], 4), 'classic4');
+assert.equal(resolveBoardIdForPlayers([1, 5], 2), 'classic6');
+assert.equal(resolveBoardIdForPlayers([{ id: 'player_x', color: 5 }, { id: 'player_y', color: 1 }], 2), 'classic6');
+assert.equal(resolveBoardIdForPlayers([{ id: 'player_x', playerNumber: 6 }, { id: 'player_y', playerNumber: 2 }], 2), 'classic6');
+assert.equal(resolveBoardIdForPlayers([1, 2, 3, 4, 1], 5), 'classic6');
 
 // 六个阵营沿公共环道保持原版13格相位差。
 assert.equal(getAbsolutePositionForBoard(1, 1, b), 1);
