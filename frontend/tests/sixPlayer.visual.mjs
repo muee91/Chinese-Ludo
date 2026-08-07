@@ -131,6 +131,50 @@ const metrics = await desktop.page.evaluate(() => {
 
 await desktop.page.screenshot({ path: path.join(outputDir, 'six-player-desktop.png'), fullPage: true });
 await desktop.page.locator('.board-container').screenshot({ path: path.join(outputDir, 'six-player-board.png') });
+
+// 昵称安全回归：配置里的 HTML-looking 文本必须按纯文本显示，不能产生 DOM 注入。
+// 同时覆盖联机数据里 id 是字符串、玩家编号来自 color/playerNumber 的常见结构。
+const nameSafetyMetrics = await desktop.page.evaluate(async () => {
+  const { prepareBoardForCurrentMode } = await import('/js/sixPlayerBoardRenderer.js');
+  const originalConfig = JSON.parse(sessionStorage.getItem('gameConfig') || '{}');
+  const maliciousName = '<img id="nickname-injection" src="x">玩家5';
+
+  const maliciousConfig = JSON.parse(JSON.stringify(originalConfig));
+  const p5 = maliciousConfig.players?.find(player => Number(player.id) === 5);
+  if (p5) p5.name = maliciousName;
+  sessionStorage.setItem('gameConfig', JSON.stringify(maliciousConfig));
+  document.querySelectorAll('.player-5-info').forEach(card => card.remove());
+  prepareBoardForCurrentMode();
+
+  const literalName = document.querySelector('.board-container > .players-info .player-5-info .player-name')?.textContent || '';
+  const injectedElementExists = !!document.getElementById('nickname-injection');
+
+  const fallbackConfig = JSON.parse(JSON.stringify(originalConfig));
+  for (const player of fallbackConfig.players || []) {
+    if (Number(player.id) === 5 || Number(player.id) === 6) delete player.name;
+  }
+  sessionStorage.setItem('gameConfig', JSON.stringify(fallbackConfig));
+  sessionStorage.setItem('multiplayerGameData', JSON.stringify({
+    boardId: 'classic6',
+    playerCount: 6,
+    players: [
+      { id: 'player_remote_5', color: 5, nickname: '联机玩家5' },
+      { id: 'player_remote_6', playerNumber: 6, nickname: '联机玩家6' }
+    ]
+  }));
+  document.querySelectorAll('.player-5-info, .player-6-info').forEach(card => card.remove());
+  prepareBoardForCurrentMode();
+
+  return {
+    maliciousName,
+    literalName,
+    injectedElementExists,
+    onlineDesktop5: document.querySelector('.board-container > .players-info .player-5-info .player-name')?.textContent?.trim() || '',
+    onlineDesktop6: document.querySelector('.board-container > .players-info .player-6-info .player-name')?.textContent?.trim() || '',
+    onlineMobile5: document.querySelector('.players-bottom .player-5-info .player-name')?.textContent?.trim() || '',
+    onlineMobile6: document.querySelector('.players-top .player-6-info .player-name')?.textContent?.trim() || ''
+  };
+});
 await desktop.context.close();
 
 const mobile = await openSixPlayerPage({ width: 390, height: 844 });
@@ -146,7 +190,7 @@ await mobile.page.screenshot({ path: path.join(outputDir, 'six-player-mobile.png
 await mobile.context.close();
 await browser.close();
 
-console.log(JSON.stringify({ metrics, mobileMetrics }, null, 2));
+console.log(JSON.stringify({ metrics, nameSafetyMetrics, mobileMetrics }, null, 2));
 
 const failures = [];
 const playerNames = Object.fromEntries(metrics.desktopCardRects.map(item => [item.player, item.name]));
@@ -165,6 +209,14 @@ if (metrics.progressAvatarCount !== 6) failures.push(`progressAvatarCount=${metr
 if (metrics.progressAvatarColors[5] !== 'rgb(199, 185, 223)') failures.push(`P5 progress color=${metrics.progressAvatarColors[5]}`);
 if (metrics.progressAvatarColors[6] !== 'rgb(217, 207, 152)') failures.push(`P6 progress color=${metrics.progressAvatarColors[6]}`);
 if (metrics.maxBaseHoleError > 0.9) failures.push(`base-hole alignment error=${metrics.maxBaseHoleError.toFixed(2)}`);
+if (nameSafetyMetrics.literalName !== nameSafetyMetrics.maliciousName) failures.push(`unsafe nickname text=${nameSafetyMetrics.literalName}`);
+if (nameSafetyMetrics.injectedElementExists) failures.push('nickname HTML was injected into DOM');
+if (nameSafetyMetrics.onlineDesktop5 !== '联机玩家5' || nameSafetyMetrics.onlineDesktop6 !== '联机玩家6') {
+  failures.push(`online desktop names=${nameSafetyMetrics.onlineDesktop5}/${nameSafetyMetrics.onlineDesktop6}`);
+}
+if (nameSafetyMetrics.onlineMobile5 !== '联机玩家5' || nameSafetyMetrics.onlineMobile6 !== '联机玩家6') {
+  failures.push(`online mobile names=${nameSafetyMetrics.onlineMobile5}/${nameSafetyMetrics.onlineMobile6}`);
+}
 if (mobileMetrics.topCards !== 3 || mobileMetrics.bottomCards !== 3) failures.push(`mobile cards=${mobileMetrics.topCards}+${mobileMetrics.bottomCards}`);
 if (mobileMetrics.player5Name !== '玩家5' || mobileMetrics.player6Name !== '玩家6') failures.push(`mobile P5/P6 names=${mobileMetrics.player5Name}/${mobileMetrics.player6Name}`);
 if (mobileMetrics.boardWidth > mobileMetrics.viewportWidth + 1) failures.push(`mobile board overflow=${mobileMetrics.boardWidth}/${mobileMetrics.viewportWidth}`);
