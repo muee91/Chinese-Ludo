@@ -46,6 +46,7 @@ jobs:
           node --check frontend/js/multiplayerManager.js
           node --check frontend/js/multiplayerGameManager.js
           node --check frontend/js/spectateMain.js
+          node --check frontend/tests/sixPlayer.visual.mjs
           node --check backend/server.cjs
       - name: Test classic4 compatibility and classic6 topology
         working-directory: frontend
@@ -73,3 +74,30 @@ jobs:
           test -f frontend/dist/index.html
           test -f frontend/dist/spectate.html
           test ! -f frontend/dist/six-player.html
+      - name: Install Playwright browser smoke dependency
+        working-directory: frontend
+        run: |
+          npm install --no-save --package-lock=false playwright@1.54.2
+          npx playwright install --with-deps chromium
+      - name: Run real browser six-player visual smoke
+        working-directory: frontend
+        run: |
+          mkdir -p /tmp/six-player-visual
+          ./node_modules/.bin/vite preview --host 127.0.0.1 --port 4173 > /tmp/six-player-vite.log 2>&1 &
+          VITE_PID=$!
+          trap 'kill $VITE_PID || true' EXIT
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173/game.html >/dev/null; then break; fi
+            sleep 1
+          done
+          SIX_PLAYER_PREVIEW_URL=http://127.0.0.1:4173 \
+          SIX_PLAYER_SCREENSHOT_DIR=/tmp/six-player-visual \
+          node tests/sixPlayer.visual.mjs
+      - name: Upload six-player browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: six-player-browser-screenshots
+          path: /tmp/six-player-visual/*.png
+          if-no-files-found: warn
+          retention-days: 14
