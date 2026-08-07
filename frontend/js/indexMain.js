@@ -1,4 +1,5 @@
 import { installSixPlayerIndexUI } from './sixPlayerUi.js';
+import { resolveBoardIdForPlayers } from './boards/boardConfig.js';
 import { emojis, defaultEmoji } from '../assets/emojis.js';
 import { MultiplayerManager } from './multiplayerManager.js';
 import { nicknameGenerator } from './nicknameGenerator.js';
@@ -1590,7 +1591,7 @@ class PlayerSetup {
         // 构建游戏配置
         const gameConfig = {
             mode: 'ai_battle',
-            boardId: (1 + this.activeBots.size) > 4 ? 'classic6' : 'classic4',
+            boardId: resolveBoardIdForPlayers([this.selectedPlayer, ...this.activeBots], totalPlayers),
             humanPlayer: this.selectedPlayer,
             humanEmoji: this.selectedEmoji,
             humanUsername: username,
@@ -1646,7 +1647,7 @@ class PlayerSetup {
         // 构建本地多人游戏配置
         const localGameConfig = {
             mode: 'local_multiplayer',
-            boardId: this.localMultiplayerConfig.playerCount > 4 ? 'classic6' : 'classic4',
+            boardId: resolveBoardIdForPlayers(this.localMultiplayerConfig.players, this.localMultiplayerConfig.playerCount),
             playerCount: this.localMultiplayerConfig.playerCount,
             pieceCount: this.localMultiplayerConfig.pieceCount,
             skillMode: skillMode,

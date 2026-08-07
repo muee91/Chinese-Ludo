@@ -6,6 +6,7 @@
 // 导入重连管理器
 import { reconnectManager } from './reconnectManager.js';
 import { nicknameGenerator } from './nicknameGenerator.js';
+import { resolveBoardIdForPlayers } from './boards/boardConfig.js';
 
 class MultiplayerManager {
     constructor() {
@@ -4238,9 +4239,10 @@ class MultiplayerManager {
         console.log('[配置] 欢乐模式:', happyModeEnabled, '(isHost:', this.isHost, ')');
 
         // 设置正确的gameConfig，确保按钮显示正确
-        const boardId = gameData.boardId
-            || this.currentRoom?.settings?.boardId
-            || (allPlayers.length > 4 ? 'classic6' : 'classic4');
+        const inferredBoardId = resolveBoardIdForPlayers(allPlayers, allPlayers.length);
+        const boardId = inferredBoardId === 'classic6'
+            ? 'classic6'
+            : (gameData.boardId || this.currentRoom?.settings?.boardId || 'classic4');
         const gameConfig = {
             mode: 'online_multiplayer',
             boardId,
@@ -4348,9 +4350,10 @@ class MultiplayerManager {
         const happyModeEnabled = gameData.happyMode !== undefined
             ? gameData.happyMode
             : (this.currentRoom?.settings?.happyMode || false);
-        const boardId = gameData.boardId
-            || this.currentRoom?.settings?.boardId
-            || (allPlayers.length > 4 ? 'classic6' : 'classic4');
+        const inferredBoardId = resolveBoardIdForPlayers(allPlayers, allPlayers.length);
+        const boardId = inferredBoardId === 'classic6'
+            ? 'classic6'
+            : (gameData.boardId || this.currentRoom?.settings?.boardId || 'classic4');
         const gameConfig = {
             mode: 'online_multiplayer',
             boardId,

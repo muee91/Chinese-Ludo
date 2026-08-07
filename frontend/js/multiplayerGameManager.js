@@ -6,6 +6,7 @@ import { reconnectManager } from './reconnectManager.js';
 import { activePlayerManager } from './activePlayerManager.js';
 import { playerIdManager } from './playerIdManager.js';
 import { prepareBoardForCurrentMode } from './sixPlayerBoardRenderer.js';
+import { resolveBoardIdForPlayers } from './boards/boardConfig.js';
 
 // 声明全局变量，这些变量在游戏运行时会被设置
 let gameState, uiUpdater, gameInfo;
@@ -787,10 +788,13 @@ class MultiplayerGameManager {
             }
             
             // 观战在拿到服务器房间数据后才能确定是 classic4 还是 classic6。
-            const spectatorBoardId = data.gameData?.boardId
-                || data.gameSession?.gameData?.boardId
-                || data.room?.settings?.boardId
-                || (playersList.length > 4 ? 'classic6' : 'classic4');
+            const inferredSpectatorBoardId = resolveBoardIdForPlayers(playersList, playersList.length);
+            const spectatorBoardId = inferredSpectatorBoardId === 'classic6'
+                ? 'classic6'
+                : (data.gameData?.boardId
+                    || data.gameSession?.gameData?.boardId
+                    || data.room?.settings?.boardId
+                    || 'classic4');
             const spectatorConfig = {
                 mode: 'online_multiplayer',
                 boardId: spectatorBoardId,

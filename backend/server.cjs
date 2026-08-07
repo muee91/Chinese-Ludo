@@ -77,6 +77,23 @@ function getBroadcastTarget(playerId) {
   return roomManager.getPlayerRoom(playerId) || null;
 }
 
+function resolveBoardIdForPlayers(players = [], playerCount = 0) {
+  const list = Array.isArray(players) ? players : [];
+  const numbers = list.map(player => {
+    if (player && typeof player === 'object') {
+      for (const value of [player.color, player.playerNumber, player.id]) {
+        const numeric = Number(value);
+        if ([1, 2, 3, 4, 5, 6].includes(numeric)) return numeric;
+      }
+      return null;
+    }
+    const numeric = Number(player);
+    return [1, 2, 3, 4, 5, 6].includes(numeric) ? numeric : null;
+  }).filter(Number.isFinite);
+  const effectiveCount = Math.max(Number(playerCount) || 0, list.length, numbers.length);
+  return effectiveCount > 4 || numbers.some(player => player > 4) ? 'classic6' : 'classic4';
+}
+
 function getSessionBoardBounds(gameData) {
   const isSix = gameData?.boardId === 'classic6' || Number(gameData?.playerCount) > 4;
   return isSix
@@ -208,7 +225,7 @@ class RoomManager {
         happyMode: !!(room.settings?.happyMode),
         playerCount: totalPlayerCount, // 包含AI玩家的总人数
         maxPlayers: room.settings?.maxPlayers ?? 6,
-        boardId: room.settings?.boardId || (totalPlayerCount > 4 ? 'classic6' : 'classic4'),
+        boardId: resolveBoardIdForPlayers([...room.players.values(), ...(room.settings?.aiPlayers || [])], totalPlayerCount),
         gameState: room.gameState,
         createdAt: room.createdAt,
         playerIds: Array.from(room.players.keys()) // 玩家ID列表，用于前端匹配身份
@@ -411,7 +428,7 @@ class GameSession {
     // 初始化游戏数据
     this.gameData = {
       gameSessionId: gameSessionId, // 添加gameSessionId以支持重连
-      boardId: players.length > 4 ? 'classic6' : 'classic4',
+      boardId: resolveBoardIdForPlayers(players, players.length),
       playerCount: players.length,
       gameStartTime: Date.now(),
       currentPlayer: null,
@@ -786,7 +803,7 @@ class Room {
       displayState: displayState,
       gameSession: sessionData,
       playerReadyStatus: Object.fromEntries(this.playerReadyStatus),
-      settings: this.settings,
+      settings: { ...this.settings, boardId: resolveBoardIdForPlayers([...this.players.values(), ...(this.settings.aiPlayers || [])], this.players.size + (this.settings.aiPlayers?.length || 0)) },
       roomChatHistory: this.roomChatHistory
     };
   }
@@ -1931,7 +1948,8 @@ function handleSpectateRoom(ws, playerId, message) {
 
 // 选择颜色（使用中间件）
 const handleSelectColor = withRoomValidation((ws, playerId, message, room, player) => {
-  const colorIndex = message.data.colorIndex;
+  const colorIndex = Number(message.data.colorIndex);
+  if (![1, 2, 3, 4, 5, 6].includes(colorIndex)) throw new Error('无效的颜色');
   // 检查真实玩家和AI玩家占用的颜色
   const usedColors = [
     ...Array.from(room.players.values()).filter(p => p.id !== playerId).map(p => p.color),
@@ -2525,7 +2543,7 @@ function handleStartGame(ws, playerId) {
   }));
   const allPlayers = [...realPlayers, ...aiPlayers];
   room.settings.maxPlayers = 6;
-  room.settings.boardId = allPlayers.length > 4 ? 'classic6' : 'classic4';
+  room.settings.boardId = resolveBoardIdForPlayers(allPlayers, allPlayers.length);
 
   // 创建游戏会话
   const hostPlayer = realPlayers.find(p => p.isHost);
