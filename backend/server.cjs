@@ -77,6 +77,13 @@ function getBroadcastTarget(playerId) {
   return roomManager.getPlayerRoom(playerId) || null;
 }
 
+function getSessionBoardBounds(gameData) {
+  const isSix = gameData?.boardId === 'classic6' || Number(gameData?.playerCount) > 4;
+  return isSix
+    ? { outerEnd: 76, finishStart: 77, finishEnd: 82 }
+    : { outerEnd: 50, finishStart: 51, finishEnd: 56 };
+}
+
 // -------------------------- 房间管理类 --------------------------
 class RoomManager {
   constructor() {
@@ -2922,7 +2929,7 @@ function handleFinalMoveResult(ws, playerId, message) {
     // 更新移动的棋子位置
     if (target.gameData.playerChess[player]?.[chessIndex]) {
       target.gameData.playerChess[player][chessIndex].position = finalPosition;
-      if (finalPosition === 56) {
+      if (finalPosition === getSessionBoardBounds(target.gameData).finishEnd) {
         target.gameData.playerChess[player][chessIndex].finished = true;
       } else if (finalPosition === -1) {
         target.gameData.playerChess[player][chessIndex].finished = false;
@@ -3077,12 +3084,13 @@ function handleDiceAnimationStart(ws, playerId, message) {
             const chessArray = gameSession.gameData.playerChess?.[currentPlayer];
             if (chessArray && Array.isArray(chessArray)) {
               const canLaunch = diceVal % 2 === 0;
+              const boardBounds = getSessionBoardBounds(gameSession.gameData);
               const hasMovable = chessArray.some(c => {
                 if (c.finished) return false;
                 const pos = c.position;
                 if (pos === undefined || pos === null || pos === -1) return canLaunch;
-                if (pos >= 0 && pos <= 50) return true;
-                if (pos >= 51 && pos < 56) return true;
+                if (pos >= 0 && pos <= boardBounds.outerEnd) return true;
+                if (pos >= boardBounds.finishStart && pos < boardBounds.finishEnd) return true;
                 return false;
               });
 
@@ -3816,7 +3824,7 @@ const handlePieceMove = withGameSessionValidation((ws, playerId, message, gameSe
   if (gameSession.gameData.playerChess[playerColor]?.[chessIndex]) {
     gameSession.gameData.playerChess[playerColor][chessIndex].position = toPosition;
     // 终点/起点状态更新
-    if (toPosition === 56) {
+    if (toPosition === getSessionBoardBounds(gameSession.gameData).finishEnd) {
       gameSession.gameData.playerChess[playerColor][chessIndex].finished = true;
     } else if (toPosition === -1) {
       gameSession.gameData.playerChess[playerColor][chessIndex].finished = false;
@@ -3885,7 +3893,7 @@ const handleChessMove = withGameSessionValidation((ws, playerId, message, gameSe
   // 更新棋子状态
   if (gameSession.gameData.playerChess[player]?.[chessIndex]) {
     gameSession.gameData.playerChess[player][chessIndex].position = position;
-    if (position === 56) {
+    if (position === getSessionBoardBounds(gameSession.gameData).finishEnd) {
       gameSession.gameData.playerChess[player][chessIndex].finished = true;
     }
     console.log(`更新棋子状态: 玩家${player}棋子${chessIndex} 到${position}${moveType ? ` (${moveType})` : ''}`);
