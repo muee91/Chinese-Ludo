@@ -13,6 +13,41 @@ const rotate = (point, degrees) => {
     return { x: point.x * Math.cos(r) - point.y * Math.sin(r), y: point.x * Math.sin(r) + point.y * Math.cos(r) };
 };
 
+function readSessionJson(key) {
+    try {
+        return JSON.parse(sessionStorage.getItem(key) || 'null');
+    } catch {
+        return null;
+    }
+}
+
+function findPlayerInPayload(payload, player) {
+    const numericPlayer = Number(player);
+    const candidates = [
+        payload?.players,
+        payload?.room?.players,
+        payload?.gameSession?.players,
+        payload?.gameData?.players
+    ];
+    for (const players of candidates) {
+        if (!Array.isArray(players)) continue;
+        const match = players.find(item => Number(item?.id ?? item?.color ?? item?.playerNumber) === numericPlayer);
+        if (match) return match;
+    }
+    return null;
+}
+
+function getConfiguredPlayerName(player) {
+    if (typeof sessionStorage === 'undefined') return `玩家${player}`;
+    const sources = [readSessionJson('gameConfig'), readSessionJson('multiplayerGameData')];
+    for (const source of sources) {
+        const match = findPlayerInPayload(source, player);
+        const name = match?.name || match?.nickname || match?.username;
+        if (name) return String(name);
+    }
+    return `玩家${player}`;
+}
+
 function defeatCounterId(player, opponent, mobile) {
     return `defeat-count-${mobile ? 'mobile-' : ''}${player}-${opponent}`;
 }
@@ -38,6 +73,7 @@ function ensureDefeatCounters(card, player, mobile = false) {
 
 function ensurePlayerCard(container, player, mobile = false) {
     if (!container) return null;
+    const configuredName = getConfiguredPlayerName(player);
     let card = container.querySelector(`.player-${player}-info`);
     if (!card) {
         card = document.createElement('div');
@@ -47,9 +83,14 @@ function ensurePlayerCard(container, player, mobile = false) {
                 <div class="player-avatar player-${player}-avatar">
                     <div class="player-emoji" id="player-${player}-emoji${mobile ? '-mobile' : ''}"></div>
                 </div>
-                <div class="player-name">Player ${player}</div>
+                <div class="player-name">${configuredName}</div>
             </div>`;
         container.appendChild(card);
+    } else {
+        const nameElement = card.querySelector('.player-name');
+        if (nameElement && /^Player\s+\d+$/i.test(nameElement.textContent?.trim() || '')) {
+            nameElement.textContent = configuredName;
+        }
     }
     ensureDefeatCounters(card, player, mobile);
     return card;
@@ -63,7 +104,9 @@ function ensureProgressItems() {
         const item = document.createElement('div');
         item.className = 'progress-item';
         item.dataset.player = String(player);
-        item.innerHTML = `<div class="progress-bar"><div class="progress-fill player-${player}"></div></div>`;
+        item.innerHTML = `
+            <div class="progress-avatar player-${player}"></div>
+            <div class="progress-bar"><div class="progress-fill player-${player}"></div></div>`;
         content.appendChild(item);
     });
 }
@@ -97,7 +140,6 @@ function ensureSixPlayerPanels() {
             const match = el.className.match(/player-(\d+)-info/);
             if (match) el.classList.add(`six-seat-${match[1]}`);
         });
-        // 六人桌面玩家卡使用棋盘自身坐标系，避免原四人页面百分比定位把 P2/P5/P6 推出视口。
         if (boardContainer && desktop.parentElement !== boardContainer) {
             boardContainer.appendChild(desktop);
         }
