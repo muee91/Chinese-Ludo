@@ -50,6 +50,7 @@ jobs:
           node --check frontend/js/spectateMain.js
           node --check frontend/tests/sixPlayer.visual.mjs
           node --check frontend/tests/sixPlayer.gameplay.mjs
+          node --check frontend/tests/sixPlayer.rulesRegression.mjs
           node --check frontend/tests/classic4.browserRegression.mjs
           node --check backend/server.cjs
           node --check backend/sixPlayerOnline.e2e.cjs
@@ -82,7 +83,7 @@ jobs:
       - name: Install Chromium for browser smoke
         working-directory: frontend
         run: npx playwright install --with-deps chromium
-      - name: Run real browser visual gameplay and classic4 regression smoke
+      - name: Run real browser visual gameplay rules and classic4 regression smoke
         working-directory: frontend
         run: |
           mkdir -p /tmp/six-player-visual
@@ -100,6 +101,8 @@ jobs:
           node tests/sixPlayer.visual.mjs
           SIX_PLAYER_PREVIEW_URL=http://127.0.0.1:4173 \
           node tests/sixPlayer.gameplay.mjs
+          SIX_PLAYER_PREVIEW_URL=http://127.0.0.1:4173 \
+          node tests/sixPlayer.rulesRegression.mjs
           SIX_PLAYER_PREVIEW_URL=http://127.0.0.1:4173 \
           node tests/classic4.browserRegression.mjs
       - name: Run six-player online room WebSocket e2e
