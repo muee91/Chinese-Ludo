@@ -25,6 +25,13 @@ jobs:
       - name: Install Rollup Linux native binary
         working-directory: frontend
         run: npm install --no-save @rollup/rollup-linux-x64-gnu
+      - name: Check migrated JavaScript syntax
+        run: |
+          node --check frontend/js/utils.js
+          node --check frontend/js/gameState.js
+          node --check frontend/js/chessPiece.js
+          node --check frontend/js/gameMain.js
+          node --check frontend/js/multiplayerManager.js
       - name: Test six-player board topology
         working-directory: frontend
         run: npm run test:six-player
