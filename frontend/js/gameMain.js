@@ -781,7 +781,7 @@ class FlyingChessGame {
             await import('../assets/emojis.js');
 
             // 如果没有指定激活的AI玩家，默认为除人类玩家外的所有玩家
-            const botsToSetup = activeBotNumbers || [1, 2, 3, 4, 5, 6].filter(i => i !== humanPlayerNumber);
+            const botsToSetup = activeBotNumbers || getCurrentBoardDefinition().players.filter(i => i !== humanPlayerNumber);
 
             // 为每个机器人玩家设置表情
             for (const i of botsToSetup) {

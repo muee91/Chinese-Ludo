@@ -877,7 +877,8 @@ class BotController {
                                 } else if (pos >= gameState.getFinishStart() && pos <= gameState.getFinishEnd()) {
                                     progressScore = 70 + (pos - gameState.getOuterTrackEnd()) * 5;
                                 } else if (pos >= 0) {
-                                    progressScore = 10 + pos;
+                                    const outerEnd = gameState.getOuterTrackEnd();
+                                    progressScore = outerEnd > 0 ? 10 + (pos / outerEnd) * 50 : 10;
                                 }
 
                                 if (progressScore > maxEnemyProgress) {
