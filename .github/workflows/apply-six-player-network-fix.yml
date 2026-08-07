@@ -1,0 +1,34 @@
+name: Apply Six Player Network Fixups
+
+on:
+  push:
+    branches:
+      - agent/add-six-player-foundation
+    paths:
+      - scripts/fix-six-player-network.mjs
+      - .github/workflows/apply-six-player-network-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/add-six-player-foundation
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/fix-six-player-network.mjs
+      - name: Commit fixups
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend frontend
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "fix: complete six-player room and reconnect integration"
+          git push origin HEAD:agent/add-six-player-foundation
