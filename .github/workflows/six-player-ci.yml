@@ -25,24 +25,37 @@ jobs:
       - name: Install Rollup Linux native binary
         working-directory: frontend
         run: npm install --no-save @rollup/rollup-linux-x64-gnu
-      - name: Check migrated JavaScript syntax
+      - name: Check integrated JavaScript syntax
         run: |
+          node --check frontend/js/boards/boardConfig.js
+          node --check frontend/js/sixPlayerBoardRenderer.js
+          node --check frontend/js/sixPlayerUi.js
           node --check frontend/js/utils.js
           node --check frontend/js/gameState.js
           node --check frontend/js/chessPiece.js
+          node --check frontend/js/animation.js
+          node --check frontend/js/dice.js
           node --check frontend/js/gameMain.js
           node --check frontend/js/multiplayerManager.js
-      - name: Test six-player board topology
+          node --check frontend/js/energyManager.js
+          node --check backend/server.cjs
+      - name: Test classic4 compatibility and classic6 topology
         working-directory: frontend
         run: npm run test:six-player
+      - name: Verify six-player source invariants
+        run: |
+          grep -q "playerCount: 6" frontend/js/boards/boardConfig.js
+          grep -q "flightPoint: 26" frontend/js/boards/boardConfig.js
+          grep -q "opponents: Object.freeze({ 1: 4, 2: 5, 3: 6" frontend/js/boards/boardConfig.js
+          grep -q "maxPlayers: 6" backend/server.cjs
+          grep -q "boardId: room.settings.boardId" backend/server.cjs
+          ! grep -q "totalPlayerCount >= 4" backend/server.cjs
+          grep -q "'player-5-color', 'player-6-color'" frontend/js/multiplayerManager.js
       - name: Build frontend
         working-directory: frontend
         run: npm run build
-      - name: Check backend syntax
-        run: node --check backend/server.cjs
-      - name: Verify integrated assets
+      - name: Verify production pages remain original entrypoints
         run: |
           test -f frontend/dist/game.html
           test -f frontend/dist/index.html
-          test -n "$(find frontend/dist/assets -type f -name '*.js' -exec grep -l 'classic6' {} + | head -n 1)"
-          test -n "$(find frontend/dist/assets -type f -name '*.js' -exec grep -l 'player-6' {} + | head -n 1)"
+          test ! -f frontend/dist/six-player.html
