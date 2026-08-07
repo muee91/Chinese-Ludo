@@ -30,14 +30,22 @@ jobs:
           node --check frontend/js/boards/boardConfig.js
           node --check frontend/js/sixPlayerBoardRenderer.js
           node --check frontend/js/sixPlayerUi.js
+          node --check frontend/js/activePlayerManager.js
           node --check frontend/js/utils.js
           node --check frontend/js/gameState.js
           node --check frontend/js/chessPiece.js
           node --check frontend/js/animation.js
           node --check frontend/js/dice.js
+          node --check frontend/js/uiUpdater.js
+          node --check frontend/js/botController.js
+          node --check frontend/js/energyManager.js
+          node --check frontend/js/energyDisplay.js
+          node --check frontend/js/skillManager.js
+          node --check frontend/js/settlementModal.js
           node --check frontend/js/gameMain.js
           node --check frontend/js/multiplayerManager.js
-          node --check frontend/js/energyManager.js
+          node --check frontend/js/multiplayerGameManager.js
+          node --check frontend/js/spectateMain.js
           node --check backend/server.cjs
       - name: Test classic4 compatibility and classic6 topology
         working-directory: frontend
@@ -45,12 +53,17 @@ jobs:
       - name: Verify six-player source invariants
         run: |
           grep -q "playerCount: 6" frontend/js/boards/boardConfig.js
+          grep -q "sectorLength: 13" frontend/js/boards/boardConfig.js
           grep -q "flightPoint: 26" frontend/js/boards/boardConfig.js
+          grep -q "flightTarget: 50" frontend/js/boards/boardConfig.js
           grep -q "opponents: Object.freeze({ 1: 4, 2: 5, 3: 6" frontend/js/boards/boardConfig.js
           grep -q "maxPlayers: 6" backend/server.cjs
           grep -q "boardId: room.settings.boardId" backend/server.cjs
           ! grep -q "totalPlayerCount >= 4" backend/server.cjs
           grep -q "'player-5-color', 'player-6-color'" frontend/js/multiplayerManager.js
+          grep -q "gameState.getFinishEnd()" frontend/js/botController.js
+          grep -q "diceValue % 2 === 0" frontend/js/uiUpdater.js
+          grep -q "spectatorBoardId" frontend/js/multiplayerGameManager.js
       - name: Build frontend
         working-directory: frontend
         run: npm run build
@@ -58,4 +71,5 @@ jobs:
         run: |
           test -f frontend/dist/game.html
           test -f frontend/dist/index.html
+          test -f frontend/dist/spectate.html
           test ! -f frontend/dist/six-player.html
