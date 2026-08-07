@@ -135,7 +135,7 @@ body.six-player-mode .progress-item[data-player="6"] .progress-player-name {
     right: auto !important;
     bottom: auto !important;
     left: auto !important;
-    width: 96px;
+    width: 92px;
     min-height: 0;
     box-sizing: border-box;
     justify-content: center;
@@ -154,16 +154,16 @@ body.six-player-mode .progress-item[data-player="6"] .progress-player-name {
 
   body.six-player-mode .board-container > .players-info > .player-info .player-avatar,
   body.six-player-mode .board-container > .players-info > .player-info .player-emoji {
-    width: 46px;
-    height: 46px;
+    width: 50px;
+    height: 50px;
   }
 
   body.six-player-mode .board-container > .players-info > .player-info .player-name {
-    max-width: 84px;
+    max-width: 90px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.2;
   }
 
@@ -301,7 +301,7 @@ body.six-player-mode .progress-item[data-player="6"] .progress-player-name {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.2;
   }
 
