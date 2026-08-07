@@ -1,0 +1,104 @@
+name: Unify Six Player Board Selection
+
+on:
+  push:
+    branches:
+      - agent/add-six-player-foundation
+    paths:
+      - .github/workflows/fix-six-player-board-selection.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply board-selection fixes and remove this workflow
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path_str, old, new, expected=1):
+              path = Path(path_str)
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(f'{path_str}: expected {expected} matches, found {count}: {old[:100]!r}')
+              path.write_text(text.replace(old, new), encoding='utf-8')
+
+          # Local / AI entrypoint.
+          replace_exact(
+              'frontend/js/indexMain.js',
+              "import { installSixPlayerIndexUI } from './sixPlayerUi.js';\n",
+              "import { installSixPlayerIndexUI } from './sixPlayerUi.js';\nimport { resolveBoardIdForPlayers } from './boards/boardConfig.js';\n"
+          )
+          replace_exact(
+              'frontend/js/indexMain.js',
+              "boardId: (1 + this.activeBots.size) > 4 ? 'classic6' : 'classic4',",
+              "boardId: resolveBoardIdForPlayers([this.selectedPlayer, ...this.activeBots], totalPlayers),"
+          )
+          replace_exact(
+              'frontend/js/indexMain.js',
+              "boardId: this.localMultiplayerConfig.playerCount > 4 ? 'classic6' : 'classic4',",
+              "boardId: resolveBoardIdForPlayers(this.localMultiplayerConfig.players, this.localMultiplayerConfig.playerCount),"
+          )
+
+          # Online lobby/start/reconnect config.
+          replace_exact(
+              'frontend/js/multiplayerManager.js',
+              "import { nicknameGenerator } from './nicknameGenerator.js';\n",
+              "import { nicknameGenerator } from './nicknameGenerator.js';\nimport { resolveBoardIdForPlayers } from './boards/boardConfig.js';\n"
+          )
+          old_board = """        const boardId = gameData.boardId\n            || this.currentRoom?.settings?.boardId\n            || (allPlayers.length > 4 ? 'classic6' : 'classic4');"""
+          new_board = """        const inferredBoardId = resolveBoardIdForPlayers(allPlayers, allPlayers.length);\n        const boardId = inferredBoardId === 'classic6'\n            ? 'classic6'\n            : (gameData.boardId || this.currentRoom?.settings?.boardId || 'classic4');"""
+          replace_exact('frontend/js/multiplayerManager.js', old_board, new_board, expected=2)
+
+          # Spectator inference.
+          replace_exact(
+              'frontend/js/multiplayerGameManager.js',
+              "import { prepareBoardForCurrentMode } from './sixPlayerBoardRenderer.js';\n",
+              "import { prepareBoardForCurrentMode } from './sixPlayerBoardRenderer.js';\nimport { resolveBoardIdForPlayers } from './boards/boardConfig.js';\n"
+          )
+          replace_exact(
+              'frontend/js/multiplayerGameManager.js',
+              """            const spectatorBoardId = data.gameData?.boardId\n                || data.gameSession?.gameData?.boardId\n                || data.room?.settings?.boardId\n                || (playersList.length > 4 ? 'classic6' : 'classic4');""",
+              """            const inferredSpectatorBoardId = resolveBoardIdForPlayers(playersList, playersList.length);\n            const spectatorBoardId = inferredSpectatorBoardId === 'classic6'\n                ? 'classic6'\n                : (data.gameData?.boardId\n                    || data.gameSession?.gameData?.boardId\n                    || data.room?.settings?.boardId\n                    || 'classic4');"""
+          )
+
+          # Server-side board inference must use actual participants/colors, not room capacity.
+          server = Path('backend/server.cjs')
+          text = server.read_text(encoding='utf-8')
+          marker = """function getSessionBoardBounds(gameData) {\n  const isSix = gameData?.boardId === 'classic6' || Number(gameData?.playerCount) > 4;"""
+          helper = """function resolveBoardIdForPlayers(players = [], playerCount = 0) {\n  const list = Array.isArray(players) ? players : [];\n  const numbers = list.map(player => {\n    if (player && typeof player === 'object') {\n      for (const value of [player.color, player.playerNumber, player.id]) {\n        const numeric = Number(value);\n        if ([1, 2, 3, 4, 5, 6].includes(numeric)) return numeric;\n      }\n      return null;\n    }\n    const numeric = Number(player);\n    return [1, 2, 3, 4, 5, 6].includes(numeric) ? numeric : null;\n  }).filter(Number.isFinite);\n  const effectiveCount = Math.max(Number(playerCount) || 0, list.length, numbers.length);\n  return effectiveCount > 4 || numbers.some(player => player > 4) ? 'classic6' : 'classic4';\n}\n\nfunction getSessionBoardBounds(gameData) {\n  const isSix = gameData?.boardId === 'classic6' || Number(gameData?.playerCount) > 4;"""
+          count = text.count(marker)
+          if count != 1:
+              raise SystemExit(f'server helper insertion marker count={count}')
+          text = text.replace(marker, helper)
+
+          replacements = [
+              ("boardId: players.length > 4 ? 'classic6' : 'classic4',", "boardId: resolveBoardIdForPlayers(players, players.length),", 1),
+              ("room.settings.boardId = allPlayers.length > 4 ? 'classic6' : 'classic4';", "room.settings.boardId = resolveBoardIdForPlayers(allPlayers, allPlayers.length);", 1),
+              ("boardId: room.settings?.boardId || (totalPlayerCount > 4 ? 'classic6' : 'classic4'),", "boardId: resolveBoardIdForPlayers([...room.players.values(), ...(room.settings?.aiPlayers || [])], totalPlayerCount),", 1),
+              ("settings: this.settings,", "settings: { ...this.settings, boardId: resolveBoardIdForPlayers([...this.players.values(), ...(this.settings.aiPlayers || [])], this.players.size + (this.settings.aiPlayers?.length || 0)) },", 1),
+              ("const colorIndex = message.data.colorIndex;", "const colorIndex = Number(message.data.colorIndex);\n  if (![1, 2, 3, 4, 5, 6].includes(colorIndex)) throw new Error('无效的颜色');", 1),
+          ]
+          for old, new, expected in replacements:
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(f'server replacement expected {expected}, found {count}: {old[:100]!r}')
+              text = text.replace(old, new)
+
+          server.write_text(text, encoding='utf-8')
+          PY
+          rm .github/workflows/fix-six-player-board-selection.yml
+      - name: Commit board-selection fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/js/indexMain.js frontend/js/multiplayerManager.js frontend/js/multiplayerGameManager.js backend/server.cjs .github/workflows/fix-six-player-board-selection.yml
+          git commit -m "fix: select classic6 when P5 or P6 participates"
+          git push origin HEAD:agent/add-six-player-foundation
