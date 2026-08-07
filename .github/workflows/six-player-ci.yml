@@ -47,6 +47,7 @@ jobs:
           node --check frontend/js/multiplayerGameManager.js
           node --check frontend/js/spectateMain.js
           node --check frontend/tests/sixPlayer.visual.mjs
+          node --check frontend/tests/sixPlayer.gameplay.mjs
           node --check backend/server.cjs
       - name: Test classic4 compatibility and classic6 topology
         working-directory: frontend
@@ -74,10 +75,10 @@ jobs:
           test -f frontend/dist/index.html
           test -f frontend/dist/spectate.html
           test ! -f frontend/dist/six-player.html
-      - name: Install Chromium for visual smoke
+      - name: Install Chromium for browser smoke
         working-directory: frontend
         run: npx playwright install --with-deps chromium
-      - name: Run real browser six-player visual smoke
+      - name: Run real browser six-player visual and gameplay smoke
         working-directory: frontend
         run: |
           mkdir -p /tmp/six-player-visual
@@ -93,6 +94,8 @@ jobs:
           SIX_PLAYER_PREVIEW_URL=http://127.0.0.1:4173 \
           SIX_PLAYER_SCREENSHOT_DIR=/tmp/six-player-visual \
           node tests/sixPlayer.visual.mjs
+          SIX_PLAYER_PREVIEW_URL=http://127.0.0.1:4173 \
+          node tests/sixPlayer.gameplay.mjs
       - name: Upload six-player browser screenshots
         if: always()
         uses: actions/upload-artifact@v4
