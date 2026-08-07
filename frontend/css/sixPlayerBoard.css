@@ -3,7 +3,8 @@
   body.six-player-mode .board-container {
     overflow: visible;
     margin-top: 64px;
-    margin-bottom: 88px;
+    /* 给下方 P4 玩家卡留出独立空间，避免与基地/骰子区重叠。 */
+    margin-bottom: 132px;
   }
 
   body.six-player-mode .board-container > .players-info {
@@ -26,7 +27,7 @@
   }
 
   body.six-player-mode .board-container > .players-info > .six-seat-1 {
-    top: -60px !important;
+    top: -104px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
   }
@@ -44,7 +45,7 @@
   }
 
   body.six-player-mode .board-container > .players-info > .six-seat-4 {
-    bottom: -72px !important;
+    bottom: -104px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
   }
