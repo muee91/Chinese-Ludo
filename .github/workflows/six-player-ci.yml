@@ -25,6 +25,8 @@ jobs:
       - name: Install Rollup Linux native binary
         working-directory: frontend
         run: npm install --no-save --workspaces=false @rollup/rollup-linux-x64-gnu
+      - name: Install backend dependencies
+        run: npm install --prefix backend --no-package-lock --workspaces=false
       - name: Check integrated JavaScript syntax
         run: |
           node --check frontend/js/boards/boardConfig.js
@@ -49,6 +51,7 @@ jobs:
           node --check frontend/tests/sixPlayer.visual.mjs
           node --check frontend/tests/sixPlayer.gameplay.mjs
           node --check backend/server.cjs
+          node --check backend/sixPlayerOnline.e2e.cjs
       - name: Test classic4 compatibility and classic6 topology
         working-directory: frontend
         run: npm run test:six-player
@@ -96,6 +99,20 @@ jobs:
           node tests/sixPlayer.visual.mjs
           SIX_PLAYER_PREVIEW_URL=http://127.0.0.1:4173 \
           node tests/sixPlayer.gameplay.mjs
+      - name: Run six-player online room WebSocket e2e
+        run: |
+          PORT=3101 node backend/server.cjs > /tmp/six-player-backend.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          READY=0
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:3101/api/stats >/dev/null; then READY=1; break; fi
+            sleep 1
+          done
+          if [ "$READY" != "1" ]; then cat /tmp/six-player-backend.log; exit 1; fi
+          SIX_PLAYER_WS_URL=ws://127.0.0.1:3101 \
+          SIX_PLAYER_HTTP_URL=http://127.0.0.1:3101 \
+          node backend/sixPlayerOnline.e2e.cjs
       - name: Upload six-player browser screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -104,3 +121,11 @@ jobs:
           path: /tmp/six-player-visual/*.png
           if-no-files-found: warn
           retention-days: 14
+      - name: Upload six-player backend log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: six-player-backend-log
+          path: /tmp/six-player-backend.log
+          if-no-files-found: ignore
+          retention-days: 7
