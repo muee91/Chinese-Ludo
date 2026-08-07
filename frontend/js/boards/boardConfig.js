@@ -85,8 +85,8 @@ const classic6 = Object.freeze({
     // 六人盘保持同一语义：2,8,14,20,26。
     flightPredecessor: 20,
     flightPoint: 26,
-    // 按原四人 SVG 的几何关系推导：飞行线必须横跨对家第3个终点航道格。
-    // 六边形参考阵营中 26 -> 50 构成与原版 18 -> 30 对应的横向跨盘飞行线。
+    // 按原四人 SVG 的几何关系推导：飞行线横跨对家第3个终点航道格。
+    // 六边形参考阵营中 26 -> 50 对应原四人盘的 18 -> 30。
     flightTarget: 50,
     flightPostJump: 56,
     finishCrossIndex: 2,
@@ -98,7 +98,7 @@ const classic6 = Object.freeze({
     getFlightCrossPosition() { return this.finishStart + this.finishCrossIndex; },
     getRingPoints() { return buildHexRing(80, 13); },
     getRingColorPlayer(absoluteIndex) {
-        // 玩家1的相对位置2是1号色；13格阵营相位在六色循环下会自然顺延一色。
+        // 玩家1相对位置2是1号色；13格阵营相位在六色循环下自然顺延一色。
         return ((Number(absoluteIndex) + 4) % 6) + 1;
     },
     getBaseSlotPositions() {
@@ -154,14 +154,47 @@ export function getCurrentBoardDefinition() {
     return getBoardDefinition(resolveBoardIdFromStorage());
 }
 
-export function getAbsolutePositionForBoard(player, relativePosition, board = getCurrentBoardDefinition()) {
+function getClassic4AbsolutePosition(player, relativePosition) {
+    // 逐项保留原 utils.getAbsolutePosition 的四人映射，避免六人改造改变经典四人碰撞语义。
     if (relativePosition === -1) return -1;
-    if (relativePosition === 0) return -(100 + Number(player)); // 各阵营独立起飞点。
-    if (relativePosition >= board.finishStart) return 1000 + Number(player) * 100 + relativePosition;
-    if (relativePosition < 1 || relativePosition > board.outerEnd) return relativePosition;
-    const offset = (Number(player) - 1) * board.sectorLength;
-    const canonical = (Number(relativePosition) + offset) % board.ringLength;
-    // 保持原四人映射语义：公共环道中玩家1不可达的两个入口连接格继续使用 -3/-2 表示。
+    if (relativePosition >= classic4.finishStart) return relativePosition;
+    if (relativePosition === 0) return 0;
+
+    if (player === 1) return relativePosition;
+    if (player === 4) {
+        if (relativePosition >= 14) return relativePosition - 13;
+        if (relativePosition >= 1 && relativePosition <= 11) return relativePosition + 39;
+        if (relativePosition === 12) return -3;
+        if (relativePosition === 13) return -2;
+    }
+    if (player === 3) {
+        if (relativePosition >= 1 && relativePosition <= 24) return relativePosition + 26;
+        if (relativePosition === 25) return -3;
+        if (relativePosition === 26) return -2;
+        if (relativePosition >= 27) return relativePosition - 26;
+    }
+    if (player === 2) {
+        if (relativePosition >= 1 && relativePosition <= 37) return relativePosition + 13;
+        if (relativePosition === 38) return -3;
+        if (relativePosition === 39) return -2;
+        if (relativePosition >= 40) return relativePosition - 39;
+    }
+    return relativePosition;
+}
+
+export function getAbsolutePositionForBoard(player, relativePosition, board = getCurrentBoardDefinition()) {
+    const numericPlayer = Number(player);
+    const numericPosition = Number(relativePosition);
+    if (board.id === 'classic4') return getClassic4AbsolutePosition(numericPlayer, numericPosition);
+
+    if (numericPosition === -1) return -1;
+    if (numericPosition === 0) return -(100 + numericPlayer); // 六人盘的六条起飞跑道彼此独立。
+    if (numericPosition >= board.finishStart) return 1000 + numericPlayer * 100 + numericPosition;
+    if (numericPosition < 1 || numericPosition > board.outerEnd) return numericPosition;
+
+    const offset = (numericPlayer - 1) * board.sectorLength;
+    const canonical = (numericPosition + offset) % board.ringLength;
+    // 与原四人盘一致：每个阵营有两个公共参考系不可达的入口连接格，用 -3/-2 编码。
     if (canonical === board.ringLength - 1) return -3;
     if (canonical === 0) return -2;
     return canonical;
