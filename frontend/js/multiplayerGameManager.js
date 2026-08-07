@@ -5,6 +5,7 @@
 import { reconnectManager } from './reconnectManager.js';
 import { activePlayerManager } from './activePlayerManager.js';
 import { playerIdManager } from './playerIdManager.js';
+import { prepareBoardForCurrentMode } from './sixPlayerBoardRenderer.js';
 
 // 声明全局变量，这些变量在游戏运行时会被设置
 let gameState, uiUpdater, gameInfo;
@@ -558,7 +559,7 @@ class MultiplayerGameManager {
                     local.position = remote.position;
                     local.finished = remote.finished;
                     if (remote.finished) {
-                        gs.updateChessPosition(p, i, remote.position || 56);
+                        gs.updateChessPosition(p, i, remote.position ?? gs.getFinishEnd());
                     }
                     changed = true;
                 }
@@ -785,6 +786,27 @@ class MultiplayerGameManager {
                 }
             }
             
+            // 观战在拿到服务器房间数据后才能确定是 classic4 还是 classic6。
+            const spectatorBoardId = data.gameData?.boardId
+                || data.gameSession?.gameData?.boardId
+                || data.room?.settings?.boardId
+                || (playersList.length > 4 ? 'classic6' : 'classic4');
+            const spectatorConfig = {
+                mode: 'online_multiplayer',
+                boardId: spectatorBoardId,
+                playerCount: playersList.length,
+                pieceCount: data.room?.settings?.pieceCount || data.gameData?.pieceCount || 4,
+                skillMode: data.room?.settings?.skillMode === true,
+                happyMode: data.room?.settings?.happyMode === true
+            };
+            sessionStorage.setItem('gameConfig', JSON.stringify(spectatorConfig));
+
+            if (gameState?.getBoardDefinition?.().id !== spectatorBoardId) {
+                gameState.resetGameState();
+                prepareBoardForCurrentMode();
+                this.gameInstance?.setupChessElements?.();
+            }
+
             // 初始化音频加载状态跟踪，确保后续 handleAudioLoaded 能正常工作
             this.audioLoadedPlayers = new Set();
             this.totalPlayers = activePlayers.length;
@@ -794,10 +816,7 @@ class MultiplayerGameManager {
             const isSkillMode = data.room && data.room.settings && data.room.settings.skillMode === true;
             if (isSkillMode) {
                 // 更新sessionStorage，让积分管理器能读取到正确的配置
-                const configStr = sessionStorage.getItem('gameConfig');
-                let config = configStr ? JSON.parse(configStr) : { mode: 'online_multiplayer' };
-                config.skillMode = true;
-                config.pieceCount = data.room.settings.pieceCount || 4;
+                const config = { ...spectatorConfig, skillMode: true };
                 sessionStorage.setItem('gameConfig', JSON.stringify(config));
                 
                 // 重新初始化积分系统和道具管理器
