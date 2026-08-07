@@ -20,6 +20,8 @@ import { energyManager } from './energyManager.js';
 import { energyDisplay } from './energyDisplay.js';
 import { skillManager } from './skillManager.js';
 import { lightningManager } from './lightningManager.js';
+import { prepareBoardForCurrentMode } from './sixPlayerBoardRenderer.js';
+import { getCurrentBoardDefinition } from './boards/boardConfig.js';
 
 class FlyingChessGame {
     constructor() {
@@ -192,7 +194,8 @@ class FlyingChessGame {
             // 2. 处理URL参数（如果有的话）
             this.handleUrlParameters();
 
-            // 3. 设置棋子元素
+            // 3. 根据配置准备四人/六人棋盘，再设置棋子元素
+            prepareBoardForCurrentMode();
             this.setupChessElements();
 
             // 4. 设置事件监听器
@@ -317,6 +320,7 @@ class FlyingChessGame {
 
     // 根据玩家颜色自动旋转棋盘
     autoRotateBoard(playerColor) {
+        if (getCurrentBoardDefinition().id === 'classic6') { uiUpdater.rotateBoard(0); return; }
         // 目标是将当前玩家放在左下角 (3号位的位置)
         // 棋盘默认顺序 (顺时针，从左下角开始): 紫色(3) -> 蓝色(4) -> 粉色(1) -> 黄色(2)
         // 也就是说：
@@ -798,7 +802,7 @@ class FlyingChessGame {
             const playerChess = gameState.getPlayerChess();
             const pieceCount = gameState.pieceCount; // 获取当前棋子个数
 
-            for (let player = 1; player <= 4; player++) {
+            for (let player = 1; player <= 6; player++) {
                 const chessElements = document.querySelectorAll(`#board-svg use[href="#chess"].player-${player}`);
                 for (let i = 0; i < pieceCount; i++) {
                     if (chessElements[i]) {
@@ -946,7 +950,7 @@ class FlyingChessGame {
     resetChessPositions() {
         try {
             const pieceCount = gameState.pieceCount; // 获取当前棋子个数
-            for (let player = 1; player <= 4; player++) {
+            for (let player = 1; player <= 6; player++) {
                 for (let i = 0; i < pieceCount; i++) {
                     // 将所有棋子移动到起始位置，跳过同步（游戏初始化不需要同步）
                     animation.moveChessToStart(player, i, null, true);
@@ -1190,7 +1194,7 @@ class FlyingChessGame {
                 // 恢复棋子位置
                 const playerChess = gameState.getPlayerChess();
                 const pieceCount = gameState.pieceCount; // 获取当前棋子个数
-                for (let player = 1; player <= 4; player++) {
+                for (let player = 1; player <= 6; player++) {
                     for (let i = 0; i < pieceCount; i++) {
                         if (gameInfo.playerChess[player] && gameInfo.playerChess[player][i]) {
                             playerChess[player][i].position = gameInfo.playerChess[player][i].position;

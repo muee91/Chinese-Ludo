@@ -20,7 +20,7 @@ class ProgressDisplay {
         this.progressContent = this.progressPanel.querySelector('.progress-content') || this.progressPanel;
 
         // 初始化进度项元素引用
-        for (let player = 1; player <= 4; player++) {
+        for (let player = 1; player <= 6; player++) {
             const item = this.progressContent.querySelector(`[data-player="${player}"]`);
             if (item) {
                 this.progressItems[player] = {
@@ -120,7 +120,7 @@ class ProgressDisplay {
         const progressData = [];
 
         // 计算所有玩家的进度
-        for (let player = 1; player <= 4; player++) {
+        for (let player = 1; player <= 6; player++) {
             const progress = this.calculatePlayerProgress(player, gameState);
             progressData.push({
                 player: player,
@@ -171,12 +171,12 @@ class ProgressDisplay {
 
     // 重置所有进度显示
     resetAllProgress() {
-        for (let player = 1; player <= 4; player++) {
+        for (let player = 1; player <= 6; player++) {
             this.updatePlayerProgress(player, 0);
         }
 
         // 恢复初始顺序
-        const initialOrder = [1, 2, 3, 4];
+        const initialOrder = [1, 2, 3, 4, 5, 6];
         initialOrder.forEach(player => {
             const item = this.progressItems[player];
             if (item && item.element) {
@@ -189,7 +189,7 @@ class ProgressDisplay {
     getPlayerRanking(gameState) {
         const progressData = [];
         
-        for (let player = 1; player <= 4; player++) {
+        for (let player = 1; player <= 6; player++) {
             const progress = this.calculatePlayerProgress(player, gameState);
             progressData.push({
                 player: player,
@@ -205,7 +205,7 @@ class ProgressDisplay {
 
     // 检查是否有玩家获胜（进度达到100%）
     checkWinner(gameState) {
-        for (let player = 1; player <= 4; player++) {
+        for (let player = 1; player <= 6; player++) {
             const progress = this.calculatePlayerProgress(player, gameState);
             if (progress >= 100) {
                 return player;

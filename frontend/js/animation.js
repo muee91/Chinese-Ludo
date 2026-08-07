@@ -425,7 +425,7 @@ class Animation {
      */
     updateAllChessPositions(animate = true) {
         const pieceCount = this.gameState.pieceCount || 4; // 获取当前棋子个数，默认为4
-        for (let player = 1; player <= 4; player++) {
+        for (let player = 1; player <= 6; player++) {
             for (let i = 0; i < pieceCount; i++) {
                 this.updateChessPosition(player, i, null, animate);
             }

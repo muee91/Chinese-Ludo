@@ -327,7 +327,7 @@ class EnergyManager {
      * 重置所有玩家积分
      */
     resetAllEnergy() {
-        for (let player = 1; player <= 4; player++) {
+        for (let player = 1; player <= 6; player++) {
             this.playerEnergy[player] = 0;
         }
     }

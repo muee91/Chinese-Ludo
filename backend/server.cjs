@@ -200,7 +200,8 @@ class RoomManager {
         skillMode: !!(room.settings?.skillMode),
         happyMode: !!(room.settings?.happyMode),
         playerCount: totalPlayerCount, // 包含AI玩家的总人数
-        maxPlayers: 4,
+        maxPlayers: 6,
+                boardId: Number(maxPlayers) > 4 ? 'classic6' : 'classic4',
         gameState: room.gameState,
         createdAt: room.createdAt,
         playerIds: Array.from(room.players.keys()) // 玩家ID列表，用于前端匹配身份
@@ -530,7 +531,7 @@ class Room {
       ...Array.from(this.players.values()).map(p => p.color),
       ...this.settings.aiPlayers.map(ai => ai.color)
     ];
-    const availableColors = [1, 2, 3, 4].filter(c => !usedColors.includes(c));
+    const availableColors = [1, 2, 3, 4, 5, 6].filter(c => !usedColors.includes(c));
     if (availableColors.length === 0) throw new Error('房间已满');
 
     // 房主默认颜色1（如果可用）
@@ -3672,7 +3673,7 @@ function handleRoomPanelMessage(ws, playerId, message) {
 // 配置棋子数量（需要房主权限）
 const handleConfigurePieceCount = withRoomValidation((ws, playerId, message, room) => {
   const { pieceCount } = message.data;
-  if (![1, 2, 3, 4].includes(pieceCount)) throw new Error('无效的棋子数量');
+  if (![1, 2, 3, 4, 5, 6].includes(pieceCount)) throw new Error('无效的棋子数量');
 
   room.settings.pieceCount = pieceCount;
   // 广播配置结果

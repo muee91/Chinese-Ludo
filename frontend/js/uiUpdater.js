@@ -576,7 +576,7 @@ class UIUpdater {
         // 旋转棋盘后，更新所有棋子的旋转角度和阴影方向，使其保持正向
         if (window.gameInstance && window.gameInstance.animation) {
             const pieceCount = gameState.pieceCount || 4;
-            for (let player = 1; player <= 4; player++) {
+            for (let player = 1; player <= 6; player++) {
                 for (let i = 0; i < pieceCount; i++) {
                     const chess = gameState.playerChess[player][i];
                     if (chess) {

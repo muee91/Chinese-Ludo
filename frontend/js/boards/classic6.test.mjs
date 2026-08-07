@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { getBoardDefinition, getAbsolutePositionForBoard, isJumpPointForBoard, getOpponentForBoard } from './boardConfig.js';
+const b = getBoardDefinition('classic6');
+assert.equal(b.playerCount, 6);
+assert.equal(b.ringLength, 78);
+assert.equal(b.outerEnd, 76);
+assert.equal(b.finishStart, 77);
+assert.equal(b.finishEnd, 82);
+assert.deepEqual(b.players, [1,2,3,4,5,6]);
+assert.equal(getOpponentForBoard(1,b),4); assert.equal(getOpponentForBoard(2,b),5); assert.equal(getOpponentForBoard(3,b),6);
+assert.equal(getAbsolutePositionForBoard(2,1,b),14); assert.equal(getAbsolutePositionForBoard(6,1,b),66);
+assert.equal(isJumpPointForBoard(2,b),true); assert.equal(isJumpPointForBoard(8,b),true); assert.equal(isJumpPointForBoard(6,b),false);
+assert.equal(b.flightPredecessor,20); assert.equal(b.flightPoint,26); assert.equal(b.flightTarget,68); assert.equal(b.flightPostJump,74);
+assert.equal(b.createMainTrack().length,83);
+console.log('classic6 board tests passed');

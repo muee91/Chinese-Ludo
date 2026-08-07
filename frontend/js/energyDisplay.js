@@ -13,7 +13,7 @@ class EnergyDisplay {
      */
     init() {
         // 为每个玩家创建积分条
-        for (let player = 1; player <= 4; player++) {
+        for (let player = 1; player <= 6; player++) {
             this.createEnergyBar(player);
         }
     }
@@ -430,7 +430,7 @@ class EnergyDisplay {
      * 清理所有积分条
      */
     destroy() {
-        for (let player = 1; player <= 4; player++) {
+        for (let player = 1; player <= 6; player++) {
             const elements = document.querySelectorAll(`.energy-bar-wrapper`);
             elements.forEach(el => {
                 if (el.parentNode) {

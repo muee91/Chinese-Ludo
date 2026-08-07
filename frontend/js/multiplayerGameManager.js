@@ -292,7 +292,7 @@ class MultiplayerGameManager {
         // 获取激活玩家列表
         const activePlayers = activePlayerManager.getActivePlayers();
 
-        for (let player = 1; player <= 4; player++) {
+        for (let player = 1; player <= 6; player++) {
             const isActive = activePlayers.includes(player);
             const chessElements = document.querySelectorAll(`#board-svg use[href="#chess"].player-${player}`);
 
@@ -500,7 +500,7 @@ class MultiplayerGameManager {
         if (!gs || !gs.playerChess) return;
 
         const playerChessData = {};
-        for (let p = 1; p <= 4; p++) {
+        for (let p = 1; p <= 6; p++) {
             if (!gs.playerChess[p]) continue;
             playerChessData[p] = {};
             for (let i = 0; i < gs.pieceCount; i++) {
@@ -547,7 +547,7 @@ class MultiplayerGameManager {
         console.log('[棋盘同步] 收到参考状态，开始比对:', data.playerChess);
 
         let changed = false;
-        for (let p = 1; p <= 4; p++) {
+        for (let p = 1; p <= 6; p++) {
             if (!data.playerChess[p] || !gs.playerChess[p]) continue;
             for (let i = 0; i < gs.pieceCount; i++) {
                 const remote = data.playerChess[p][i];
@@ -1470,7 +1470,7 @@ class MultiplayerGameManager {
             let restoredCount = 0;
 
             // 执行棋子视觉位置恢复
-            for (let player = 1; player <= 4; player++) {
+            for (let player = 1; player <= 6; player++) {
                 for (let chessIdx = 0; chessIdx < pieceCount; chessIdx++) {
                     const chess = gameState.playerChess[player][chessIdx];
 
@@ -2592,7 +2592,7 @@ class MultiplayerGameManager {
 
             // 更新棋子状态
             if (boardState.playerChess) {
-                for (let player = 1; player <= 4; player++) {
+                for (let player = 1; player <= 6; player++) {
                     if (boardState.playerChess[player]) {
                         for (let i = 0; i < boardState.playerChess[player].length; i++) {
                             const chessState = boardState.playerChess[player][i];

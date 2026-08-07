@@ -824,7 +824,7 @@ class SettlementModal {
         if (!this.defeatCountDisplay) return {};
 
         const defeatCounts = {};
-        for (let opponent = 1; opponent <= 4; opponent++) {
+        for (let opponent = 1; opponent <= 6; opponent++) {
             if (opponent !== player) {
                 defeatCounts[opponent] = this.gameState.getDefeatCount(player, opponent);
             }
@@ -933,7 +933,7 @@ class SettlementModal {
         // Defeat统计
         const defeats = document.createElement('div');
         defeats.className = 'ranking-defeats';
-        for (let opponent = 1; opponent <= 4; opponent++) {
+        for (let opponent = 1; opponent <= 6; opponent++) {
             if (opponent !== data.player) {
                 const count = document.createElement('span');
                 count.className = `defeat-count player-${opponent}-defeat`;

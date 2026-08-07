@@ -1,3 +1,4 @@
+import { installSixPlayerIndexUI } from './sixPlayerUi.js';
 import { emojis, defaultEmoji } from '../assets/emojis.js';
 import { MultiplayerManager } from './multiplayerManager.js';
 import { nicknameGenerator } from './nicknameGenerator.js';
@@ -173,6 +174,7 @@ class PlayerSetup {
     }
 
     init() {
+        installSixPlayerIndexUI();
         this.setupModeSelection();
         this.setupLocalMultiplayerConfig();
     }
@@ -309,7 +311,7 @@ class PlayerSetup {
     initLocalHumanColorSelection(playerCount) {
         if (!this.localMultiplayerConfig) return;
         this.localMultiplayerConfig.humanColors = new Set();
-        const order = [1, 3, 2, 4];
+        const order = [1, 4, 2, 5, 3, 6];
         for (let i = 0; i < playerCount; i++) {
             this.localMultiplayerConfig.humanColors.add(order[i]);
         }
@@ -336,8 +338,8 @@ class PlayerSetup {
             if (selected.size <= 2) return;
             selected.delete(color);
         } else {
-            // 最多4个
-            if (selected.size >= 4) return;
+            // 最多6个
+            if (selected.size >= 6) return;
             selected.add(color);
         }
 
@@ -1588,6 +1590,7 @@ class PlayerSetup {
         // 构建游戏配置
         const gameConfig = {
             mode: 'ai_battle',
+            boardId: (1 + this.activeBots.size) > 4 ? 'classic6' : 'classic4',
             humanPlayer: this.selectedPlayer,
             humanEmoji: this.selectedEmoji,
             humanUsername: username,
@@ -1643,6 +1646,7 @@ class PlayerSetup {
         // 构建本地多人游戏配置
         const localGameConfig = {
             mode: 'local_multiplayer',
+            boardId: this.localMultiplayerConfig.playerCount > 4 ? 'classic6' : 'classic4',
             playerCount: this.localMultiplayerConfig.playerCount,
             pieceCount: this.localMultiplayerConfig.pieceCount,
             skillMode: skillMode,

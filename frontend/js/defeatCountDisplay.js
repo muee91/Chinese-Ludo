@@ -7,9 +7,9 @@ class DefeatCountDisplay {
 
     // 初始化击败次数显示元素
     initializeElements() {
-        for (let player = 1; player <= 4; player++) {
+        for (let player = 1; player <= 6; player++) {
             this.defeatCountElements[player] = {};
-            for (let opponent = 1; opponent <= 4; opponent++) {
+            for (let opponent = 1; opponent <= 6; opponent++) {
                 if (player !== opponent) {
                     // 桌面端元素
                     const elementId = `defeat-count-${player}-${opponent}`;
@@ -61,8 +61,8 @@ class DefeatCountDisplay {
 
     // 更新所有击败次数显示
     updateAllDefeatCounts(defeatCounts) {
-        for (let player = 1; player <= 4; player++) {
-            for (let opponent = 1; opponent <= 4; opponent++) {
+        for (let player = 1; player <= 6; player++) {
+            for (let opponent = 1; opponent <= 6; opponent++) {
                 if (player !== opponent && defeatCounts[player] && defeatCounts[player][opponent] !== undefined) {
                     this.updateDefeatCount(player, opponent, defeatCounts[player][opponent]);
                 }
@@ -72,8 +72,8 @@ class DefeatCountDisplay {
 
     // 重置所有击败次数显示
     resetAllDefeatCounts() {
-        for (let player = 1; player <= 4; player++) {
-            for (let opponent = 1; opponent <= 4; opponent++) {
+        for (let player = 1; player <= 6; player++) {
+            for (let opponent = 1; opponent <= 6; opponent++) {
                 if (player !== opponent) {
                     this.updateDefeatCount(player, opponent, 0);
                 }

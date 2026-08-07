@@ -250,7 +250,7 @@ class BotController {
         const gameState = window.gameInstance.gameState;
         const progressData = [];
         
-        for (let p = 1; p <= 4; p++) {
+        for (let p = 1; p <= 6; p++) {
             // 获取当前激活的玩家列表
             const activePlayers = activePlayerManager ? activePlayerManager.getActivePlayers() : [1, 2, 3, 4];
             if (activePlayers.includes(p)) {
@@ -294,7 +294,7 @@ class BotController {
         const gameState = window.gameInstance.gameState;
         const progressData = [];
         
-        for (let p = 1; p <= 4; p++) {
+        for (let p = 1; p <= 6; p++) {
             // 获取当前激活的玩家列表
             const activePlayers = activePlayerManager ? activePlayerManager.getActivePlayers() : [1, 2, 3, 4];
             if (activePlayers.includes(p)) {

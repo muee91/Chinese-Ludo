@@ -1,10 +1,14 @@
 import { activePlayerManager } from './activePlayerManager.js';
+import { SUPPORTED_PLAYERS, getCurrentBoardDefinition } from './boards/boardConfig.js';
 
 // 游戏状态管理模块
 class GameState {
     constructor() {
         // 思考时间常量（毫秒）
         this.THINKING_TIME = 20000; // 20秒思考时间
+
+        this.boardDefinition = getCurrentBoardDefinition();
+        this.maxPlayers = this.boardDefinition.playerCount;
 
         // 游戏基础状态
         this.currentPlayer = null; // 当前玩家 (1-4)，初始设为null以确保首次设置时触发日志
@@ -131,12 +135,32 @@ class GameState {
         };
     }
 
+    ensureSupportedPlayerState() {
+        const diceTemplate = () => ({ 1:0, 2:0, 3:0, 4:0, 5:0, 6:0 });
+        for (const player of SUPPORTED_PLAYERS) {
+            this.defeatCounts[player] ||= {};
+            for (const opponent of SUPPORTED_PLAYERS) if (opponent !== player) this.defeatCounts[player][opponent] ??= 0;
+            this.diceStatistics[player] ||= diceTemplate();
+            this.totalDistance[player] ??= 0;
+            this.totalEnergyGained[player] ??= 0;
+            this.skillUsage[player] ||= { remoteDice:0, teleport:0, polyhedralDice:0, mysteryBox:0 };
+            for (const key of ['consecutiveOnes','consecutiveNoTakeoff','maxConsecutiveSixes','bounceSteps','maxTeleportDistance','mysteryBoxMax','polyhedralMax','skillUseCount']) this.titleStats[key][player] ??= 0;
+            for (const key of ['mysteryBoxMin','polyhedralMin']) this.titleStats[key][player] ??= 99;
+        }
+    }
+
+    getBoardDefinition() { return this.boardDefinition || getCurrentBoardDefinition(); }
+    getOuterTrackEnd() { return this.getBoardDefinition().outerEnd; }
+    getFinishStart() { return this.getBoardDefinition().finishStart; }
+    getFinishEnd() { return this.getBoardDefinition().finishEnd; }
+    getPlayerRotation(player) { return this.getBoardDefinition().playerAngles[Number(player)] ?? 0; }
+
     // 初始化玩家棋子状态
     initializePlayerChess(pieceCount) {
         this.pieceCount = pieceCount;
         this.playerChess = {};
 
-        for (let player = 1; player <= 4; player++) {
+        for (const player of SUPPORTED_PLAYERS) {
             this.playerChess[player] = [];
             for (let i = 0; i < pieceCount; i++) {
                 this.playerChess[player].push({
@@ -150,6 +174,7 @@ class GameState {
     }
 
     generateMainTrack() {
+        if (this.boardDefinition?.id === 'classic6') return this.boardDefinition.createMainTrack();
         // 主轨道位置数组，包含所有移动路径
         const track = [];
 
@@ -299,6 +324,10 @@ class GameState {
 
     // 重置游戏状态
     resetGameState() {
+        this.boardDefinition = getCurrentBoardDefinition();
+        this.maxPlayers = this.boardDefinition.playerCount;
+        this.mainTrack = this.generateMainTrack();
+        this.trackRotations = this.calculateTrackRotations(this.mainTrack);
         // 清除思考时间计时器
         this.clearThinkingTimer();
 
@@ -324,7 +353,7 @@ class GameState {
         this.pauseStartTime = null;
 
         // 重置所有棋子状态
-        for (let player = 1; player <= 4; player++) {
+        for (const player of SUPPORTED_PLAYERS) {
             for (let i = 0; i < this.pieceCount; i++) {
                 this.playerChess[player][i].position = -1;
                 this.playerChess[player][i].finished = false;
@@ -339,7 +368,7 @@ class GameState {
         }
 
         // 重置击败次数统计
-        for (let player = 1; player <= 4; player++) {
+        for (const player of SUPPORTED_PLAYERS) {
             for (let opponent = 1; opponent <= 4; opponent++) {
                 if (player !== opponent) {
                     this.defeatCounts[player][opponent] = 0;
@@ -352,7 +381,7 @@ class GameState {
         this.gameEndTime = null;
 
         // 重置总前进距离统计
-        for (let player = 1; player <= 4; player++) {
+        for (const player of SUPPORTED_PLAYERS) {
             this.totalDistance[player] = 0;
         }
 

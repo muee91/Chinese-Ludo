@@ -1,29 +1,12 @@
+import { SUPPORTED_PLAYERS, getCurrentBoardDefinition, getAbsolutePositionForBoard, isJumpPointForBoard, getNextJumpPointForBoard, getOpponentForBoard } from './boards/boardConfig.js';
 // 工具函数模块
 // 包含位置转换、特殊位置判断、绝对位置计算等纯函数
 
 // 判断是否为起跳点
-export function isJumpPoint(position) {
-    // 普通起跳点：2, 6, 10, 14, 22, 26, 30, 34, 38, 42, 46
-    // 位置18在正常情况下是特殊飞棋点，但在叠子阻挡情况下会被当作普通起跳点处理
-    // 排除位置50（准备进入终点区域）
-    const jumpPoints = [2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46];
-    return jumpPoints.includes(position);
-}
+export function isJumpPoint(position) { return isJumpPointForBoard(position, getCurrentBoardDefinition()); }
 
 // 获取下一个起跳点（跳到下一个起跳点位置）
-export function getNextJumpPoint(currentPosition) {
-    // 处理特殊情况
-    if (currentPosition === 46) {
-        return 50;
-    }
-    // 从当前位置开始寻找下一个起跳点
-    for (let pos = currentPosition + 1; pos <= 50; pos++) {
-        if (isJumpPoint(pos)) {
-            return pos;
-        }
-    }
-    return null; // 没有下一个起跳点
-}
+export function getNextJumpPoint(currentPosition) { return getNextJumpPointForBoard(currentPosition, getCurrentBoardDefinition()); }
 
 // 根据棋子在轨道上的位置计算应该的旋转角度
 export function getChessRotationAtPosition(position) {
@@ -58,54 +41,7 @@ export function getChessRotationAtPosition(position) {
 }
 
 // 将玩家的相对位置转换为绝对轨道位置（以玩家1为参考）
-export function getAbsolutePosition(player, relativePosition) {
-    if (relativePosition === -1) return -1; // 起始区域
-    if (relativePosition >= 51) return relativePosition; // 终点通道（51及以上），每个玩家独立，不参与beat检测
-    if (relativePosition === 0) return 0; // 所有玩家的起点都是位置0
-
-    // 根据映射关系.txt的规则进行转换
-    if (player === 1) {
-        // 玩家1的绝对位置就是其相对位置
-        return relativePosition;
-    } else if (player === 4) {
-        // 玩家4的转换规则
-        if (relativePosition >= 14) {
-            return relativePosition - 13;
-        } else if (relativePosition >= 1 && relativePosition <= 11) {
-            return relativePosition + 39;
-        } else if (relativePosition === 12) {
-            return -3; // 玩家1到不了的位置
-        } else if (relativePosition === 13) {
-            return -2 // 玩家1到不了的位置
-        }
-    } else if (player === 3) {
-        // 玩家3的转换规则
-        if (relativePosition >= 1 && relativePosition <= 24) {
-            return relativePosition + 26;
-        } else if (relativePosition === 25) {
-            return -3; // 玩家1到不了的位置
-        } else if (relativePosition === 26) {
-            return -2;// 玩家1到不了的位置
-        }
-        else if (relativePosition >= 27) {
-            return relativePosition - 26;
-        }
-    } else if (player === 2) {
-        // 玩家2的转换规则
-        if (relativePosition >= 1 && relativePosition <= 37) {
-            return relativePosition + 13;
-        } else if (relativePosition === 38) {
-            return -3; // 玩家1到不了的位置
-        } else if (relativePosition === 39) {
-            return -2;// 玩家1到不了的位置
-        }
-        else if (relativePosition >= 40) {
-            return relativePosition - 39;
-        }
-    }
-
-    return relativePosition; // 默认返回原位置
-}
+export function getAbsolutePosition(player, relativePosition) { return getAbsolutePositionForBoard(player, relativePosition, getCurrentBoardDefinition()); }
 
 // 检查指定绝对 position 是否有其他玩家的棋子
 export function getChessAtAbsolutePosition(absolutePosition, gameState) {
@@ -115,7 +51,7 @@ export function getChessAtAbsolutePosition(absolutePosition, gameState) {
     const playerChess = gameState.getPlayerChess ? gameState.getPlayerChess() : gameState.playerChess;
     const pieceCount = gameState.pieceCount || 4; // 获取当前棋子个数，默认为4
 
-    for (let player = 1; player <= 4; player++) {
+    for (const player of SUPPORTED_PLAYERS) {
         for (let chessIndex = 0; chessIndex < pieceCount; chessIndex++) {
             const chess = playerChess[player][chessIndex];
             if (chess.finished || chess.position === -1) continue;
@@ -156,7 +92,7 @@ export async function beatChessAtPosition(absolutePosition, currentPlayer, gameS
     const playerChess = gameState.getPlayerChess ? gameState.getPlayerChess() : gameState.playerChess;
     const pieceCount = gameState.pieceCount || 4; // 获取当前棋子个数，默认为4
     let targetChess = null;
-    for (let player = 1; player <= 4 && !targetChess; player++) {
+    for (const player of SUPPORTED_PLAYERS) { if (targetChess) break; {
         if (player === currentPlayer) continue; // 跳过当前玩家
         for (let chessIndex = 0; chessIndex < pieceCount; chessIndex++) {
             const chess = playerChess[player][chessIndex];
@@ -261,10 +197,7 @@ export function calculateChessProgress(chess, player) {
 }
 
 // 获取对家玩家编号（1-3, 2-4对应关系）
-export function getOpponentPlayer(player) {
-    const opponents = { 1: 3, 2: 4, 3: 1, 4: 2 };
-    return opponents[player];
-}
+export function getOpponentPlayer(player) { return getOpponentForBoard(player, getCurrentBoardDefinition()); }
 
 /**
  * 检查指定位置是否有其他玩家的棋子（含叠子）
@@ -383,7 +316,7 @@ export function isStackAtAbsolutePosition(absolutePosition, gameState) {
     const pieceCount = gameState.pieceCount || 4; // 获取当前棋子个数，默认为4
 
     // 统计每个玩家在该位置的棋子数量
-    for (let player = 1; player <= 4; player++) {
+    for (const player of SUPPORTED_PLAYERS) {
         const chessAtPosition = [];
 
         for (let chessIndex = 0; chessIndex < pieceCount; chessIndex++) {

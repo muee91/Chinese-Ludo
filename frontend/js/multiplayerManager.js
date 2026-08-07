@@ -737,7 +737,7 @@ class MultiplayerManager {
 
     getRoomChatNameColorClass(playerNumber) {
         const colorIndex = Number(playerNumber);
-        if ([1, 2, 3, 4].includes(colorIndex)) {
+        if ([1, 2, 3, 4, 5, 6].includes(colorIndex)) {
             return `player-${colorIndex}-name`;
         }
         return '';
@@ -750,7 +750,7 @@ class MultiplayerManager {
         const text = String(message || '').trim();
         if (!text) return;
 
-        const normalizedPlayerNumber = [1, 2, 3, 4].includes(Number(playerNumber))
+        const normalizedPlayerNumber = [1, 2, 3, 4, 5, 6].includes(Number(playerNumber))
             ? Number(playerNumber)
             : null;
 
@@ -2628,7 +2628,7 @@ class MultiplayerManager {
                 this.wsClient.createRoom({
                     nickname: nickname,
                     emoji: this.selectedEmoji,
-                    maxPlayers: 4,
+                    maxPlayers: 6,
                     gameMode: 'multiplayer'
                 });
 
@@ -2681,7 +2681,7 @@ class MultiplayerManager {
 
             // 使用WebSocketClient的createRoom方法
             this.wsClient.createRoom({
-                maxPlayers: 4,
+                maxPlayers: 6,
                 gameMode: 'multiplayer',
                 nickname: nickname, // 使用保存的昵称，如果为空，服务器会生成默认昵称
                 emoji: this.selectedEmoji
@@ -3672,7 +3672,7 @@ class MultiplayerManager {
         const occupiedColors = Array.from(this.players.values())
             .filter(p => p.color && !p.isAI)
             .map(p => p.color);
-        const availableColors = [1, 2, 3, 4].filter(color => !occupiedColors.includes(color));
+        const availableColors = [1, 2, 3, 4, 5, 6].filter(color => !occupiedColors.includes(color));
 
         availableColors.forEach(color => {
             const aiPlayer = aiPlayers.find(ai => ai.color === color);

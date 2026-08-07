@@ -299,13 +299,13 @@ class Dice {
             if (chess.position === -1) return canLaunch;
 
             // 如果棋子在轨道上（位置0-50），需要检查能否进入终点通道
-            if (chess.position >= 0 && chess.position <= 50) {
+            if (chess.position >= 0 && chess.position <= this.gameState.getOuterTrackEnd()) {
                 // 可以移动：要么不会超过终点通道入口，要么会进入终点通道并支持反弹
                 return true;
             }
 
             // 如果棋子在终点通道（位置51-56），支持反弹机制
-            if (chess.position >= 51 && chess.position < 56) {
+            if (chess.position >= this.gameState.getFinishStart() && chess.position < this.gameState.getFinishEnd()) {
                 // 在终点通道内，任何点数都可以移动（要么到终点，要么反弹）
                 return true;
             }

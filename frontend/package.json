@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "server": "node server.cjs",
-    "start": "concurrently \"npm run server\" \"npm run dev\""
+    "start": "concurrently \"npm run server\" \"npm run dev\"",
+    "test:six-player": "node js/boards/classic6.test.mjs"
   },
   "devDependencies": {
     "vite": "^7.1.7",
