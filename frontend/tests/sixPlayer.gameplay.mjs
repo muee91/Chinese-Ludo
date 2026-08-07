@@ -36,6 +36,14 @@ const initial = await page.evaluate(() => {
   const game = window.gameInstance;
   const gs = game.gameState;
   const apm = window.activePlayerManager;
+
+  // 联机/存储层可能混合字符串和数字 ID；必须先 Number 化再去重。
+  apm.setActivePlayers(['1', 1, '5', 5, '6', '6', 99, 'bad']);
+  const normalizedMixedIds = apm.getActivePlayers();
+  apm.setCurrentActivePlayer('1');
+  const mixedSequence = [apm.getCurrentActivePlayer()];
+  for (let i = 0; i < 3; i++) mixedSequence.push(apm.getNextActivePlayer());
+
   apm.setActivePlayers([1, 2, 3, 4, 5, 6]);
   apm.setCurrentActivePlayer(1);
   const sequence = [apm.getCurrentActivePlayer()];
@@ -46,6 +54,8 @@ const initial = await page.evaluate(() => {
   gs.setGamePhase('selecting');
   return {
     activePlayers: apm.getActivePlayers(),
+    normalizedMixedIds,
+    mixedSequence,
     sequence,
     p5CanLaunchOn2: game.uiUpdater.canChessMove(5, 0, 2),
     p5CanLaunchOn3: game.uiUpdater.canChessMove(5, 0, 3),
@@ -58,6 +68,8 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+assert(JSON.stringify(initial.normalizedMixedIds) === JSON.stringify([1,5,6]), `mixed active ids=${JSON.stringify(initial.normalizedMixedIds)}`);
+assert(JSON.stringify(initial.mixedSequence) === JSON.stringify([1,5,6,1]), `mixed turn sequence=${JSON.stringify(initial.mixedSequence)}`);
 assert(JSON.stringify(initial.activePlayers) === JSON.stringify([1,2,3,4,5,6]), `active players=${JSON.stringify(initial.activePlayers)}`);
 assert(JSON.stringify(initial.sequence) === JSON.stringify([1,2,3,4,5,6,1]), `turn sequence=${JSON.stringify(initial.sequence)}`);
 assert(initial.p5CanLaunchOn2 && !initial.p5CanLaunchOn3, `P5 launch rule 2/3=${initial.p5CanLaunchOn2}/${initial.p5CanLaunchOn3}`);
