@@ -248,6 +248,27 @@ class UIUpdater {
                 avatar.classList.add('player-avatar-active');
             });
         }
+
+        this.updateSixPlayerSeatState();
+    }
+
+    // 六人模式将当前回合同时映射到桌面席位和移动端卡片。
+    // 四人模式没有 six-seat-* 类，因此这里直接返回，不改变旧布局。
+    updateSixPlayerSeatState() {
+        if (!document.body.classList.contains('six-player-mode')) return;
+
+        document.querySelectorAll('.six-seat-active').forEach(seat => {
+            seat.classList.remove('six-seat-active');
+        });
+
+        const currentPlayer = Number(gameState.getCurrentPlayer());
+        const gamePhase = gameState.getGamePhase();
+        const winner = gameState.getWinner();
+        if (winner || !["rolling", "selecting", "waiting"].includes(gamePhase)) return;
+
+        document.querySelectorAll(`.player-${currentPlayer}-info`).forEach(seat => {
+            seat.classList.add('six-seat-active');
+        });
     }
 
     // 更新起始区域发光效果

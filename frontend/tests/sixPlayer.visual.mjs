@@ -111,6 +111,12 @@ const metrics = await desktop.page.evaluate(() => {
     return avatar ? getComputedStyle(avatar).backgroundColor : '';
   };
 
+  const progressRows = [...document.querySelectorAll('.progress-content .progress-item')].map(item => ({
+    player: Number(item.dataset.player),
+    name: item.querySelector('.progress-player-name')?.textContent?.trim() || '',
+    percentage: item.querySelector('.progress-percentage')?.textContent?.trim() || ''
+  }));
+
   return {
     boardId: svg?.dataset.boardId,
     ringCount: document.querySelectorAll('#classic6-board-layer .six-ring-cell').length,
@@ -121,10 +127,14 @@ const metrics = await desktop.page.evaluate(() => {
     desktopCardCount: desktopCards.length,
     visibleDesktopCardCount: visibleDesktopCards.length,
     desktopCardRects,
+    desktopDefeatCounterCount: [...document.querySelectorAll('.board-container > .players-info .defeat-count')]
+      .filter(element => element.offsetParent !== null).length,
+    activeDesktopPlayers: desktopCards.filter(card => card.classList.contains('six-seat-active')).map(card => Number([...card.classList].find(name => /^player-\d+-info$/.test(name))?.match(/\d+/)?.[0] || 0)),
     topSeatBaseGap,
     bottomSeatBaseGap,
     progressAvatarCount: document.querySelectorAll('.progress-content .progress-avatar').length,
     progressAvatarColors: { 5: progressColor(5), 6: progressColor(6) },
+    progressRows,
     maxBaseHoleError: Math.max(...baseErrors),
     svgRect: svg ? svg.getBoundingClientRect().toJSON() : null
   };
@@ -132,7 +142,76 @@ const metrics = await desktop.page.evaluate(() => {
 
 await desktop.page.screenshot({ path: path.join(outputDir, 'six-player-desktop.png'), fullPage: true });
 await desktop.page.locator('.board-container').screenshot({ path: path.join(outputDir, 'six-player-board.png') });
+
+const activeSeatAfterTurnChange = await desktop.page.evaluate(() => {
+  const gs = window.gameInstance.gameState;
+  gs.setCurrentPlayer(4);
+  gs.setGamePhase('rolling');
+  window.gameInstance.uiUpdater.updateUI();
+  const playerNumber = element => Number([...element.classList].find(name => /^player-\d+-info$/.test(name))?.match(/\d+/)?.[0] || 0);
+  return {
+    desktop: [...document.querySelectorAll('.board-container > .players-info .six-seat-active')].map(playerNumber),
+    mobile: [...document.querySelectorAll('.players-top .six-seat-active, .players-bottom .six-seat-active')].map(playerNumber)
+  };
+});
+const progressUpdate = await desktop.page.evaluate(() => {
+  window.gameInstance.progressDisplay.updatePlayerProgress(5, 42);
+  const item = document.querySelector('.progress-item[data-player="5"]');
+  return {
+    width: item?.querySelector('.progress-fill')?.style.width || '',
+    percentage: item?.querySelector('.progress-percentage')?.textContent?.trim() || ''
+  };
+});
 await desktop.context.close();
+
+async function collectResponsiveMetrics(viewport) {
+  const fixture = await openSixPlayerPage(viewport);
+  const result = await fixture.page.evaluate(() => {
+    const visibleCards = [...document.querySelectorAll('.player-info')]
+      .map(element => element.getBoundingClientRect())
+      .filter(rect => rect.width > 0 && rect.height > 0);
+    const board = document.getElementById('board-svg')?.getBoundingClientRect();
+    return {
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      boardWidth: board?.width || 0,
+      boardHeight: board?.height || 0,
+      visibleCardCount: visibleCards.length,
+      hasOverflow: visibleCards.some(rect => rect.left < -1 || rect.top < -1 || rect.right > window.innerWidth + 1 || rect.bottom > window.innerHeight + 1)
+    };
+  });
+  await fixture.context.close();
+  return result;
+}
+
+const responsiveMetrics = {
+  desktop1280: await collectResponsiveMetrics({ width: 1280, height: 1000 }),
+  tablet1000: await collectResponsiveMetrics({ width: 1000, height: 800 }),
+  mobile390: await collectResponsiveMetrics({ width: 390, height: 844 })
+};
+
+// 截图对应的人机六人模式：Bot 名称由 playerNameManager 生成，棋盘
+// 席位创建发生在 handleUrlParameters 之后，必须验证名称不会退回为“玩家5/6”。
+const aiBattleConfig = {
+  mode: 'ai_battle',
+  boardId: 'classic6',
+  humanPlayer: 1,
+  humanUsername: '玩家',
+  humanEmoji: 'smile',
+  pieceCount: 4,
+  bots: [2, 3, 4, 5, 6],
+  botDifficulties: { 2: 'easy', 3: 'easy', 4: 'easy', 5: 'easy', 6: 'easy' },
+  skillMode: false,
+  happyMode: false
+};
+const aiBattle = await openSixPlayerPage({ width: 1440, height: 1100 }, aiBattleConfig);
+const aiBattleMetrics = await aiBattle.page.evaluate(() => ({
+  title: document.title,
+  names: [...document.querySelectorAll('.board-container > .players-info .player-name')].map(element => element.textContent?.trim() || ''),
+  progressNames: [...document.querySelectorAll('.progress-item .progress-player-name')].map(element => element.textContent?.trim() || ''),
+  activeSeat: [...document.querySelectorAll('.board-container > .players-info .six-seat-active')].map(element => element.querySelector('.player-name')?.textContent?.trim() || '')
+}));
+await aiBattle.page.screenshot({ path: path.join(outputDir, 'six-player-ai.png'), fullPage: true });
+await aiBattle.context.close();
 
 // 只有2名参与者，但包含 P5 时也必须自动使用 classic6；不能只按“人数>4”判断。
 const sparseP5Config = {
@@ -181,6 +260,7 @@ const onlinePayload = {
   skillMode: false,
   happyMode: false,
   gameSessionId: 'game_visual_names',
+  isSpectator: true,
   currentPlayer: { id: 'player_remote_5', color: 5 },
   players: [
     { id: 'player_remote_5', color: 5, nickname: '联机玩家5', isAI: false },
@@ -203,6 +283,7 @@ const mobileMetrics = await mobile.page.evaluate(() => ({
   bottomCards: document.querySelectorAll('.players-bottom > .player-info').length,
   player5Name: document.querySelector('.players-bottom .player-5-info .player-name')?.textContent?.trim() || '',
   player6Name: document.querySelector('.players-top .player-6-info .player-name')?.textContent?.trim() || '',
+  activeCards: [...document.querySelectorAll('.players-top .six-seat-active, .players-bottom .six-seat-active')].map(el => Number([...el.classList].find(name => /^player-\d+-info$/.test(name))?.match(/\d+/)?.[0] || 0)),
   boardWidth: document.getElementById('board-svg')?.getBoundingClientRect().width ?? 0,
   viewportWidth: window.innerWidth
 }));
@@ -210,7 +291,7 @@ await mobile.page.screenshot({ path: path.join(outputDir, 'six-player-mobile.png
 await mobile.context.close();
 await browser.close();
 
-console.log(JSON.stringify({ metrics, sparseP5Metrics, maliciousMetrics, onlineNameMetrics, mobileMetrics }, null, 2));
+console.log(JSON.stringify({ metrics, activeSeatAfterTurnChange, progressUpdate, responsiveMetrics, aiBattleMetrics, sparseP5Metrics, maliciousMetrics, onlineNameMetrics, mobileMetrics }, null, 2));
 
 const failures = [];
 const playerNames = Object.fromEntries(metrics.desktopCardRects.map(item => [item.player, item.name]));
@@ -222,13 +303,36 @@ if (metrics.startCount !== 6) failures.push(`startCount=${metrics.startCount}`);
 if (metrics.chessCount !== 24) failures.push(`chessCount=${metrics.chessCount}`);
 if (metrics.desktopCardCount !== 6) failures.push(`desktopCardCount=${metrics.desktopCardCount}`);
 if (metrics.visibleDesktopCardCount !== 6) failures.push(`visibleDesktopCardCount=${metrics.visibleDesktopCardCount}`);
+if (metrics.desktopDefeatCounterCount !== 0) failures.push(`desktopDefeatCounterCount=${metrics.desktopDefeatCounterCount}`);
+if (JSON.stringify(metrics.activeDesktopPlayers) !== JSON.stringify([1])) failures.push(`active desktop seats=${JSON.stringify(metrics.activeDesktopPlayers)}`);
 if (metrics.topSeatBaseGap < 8) failures.push(`P1 base gap=${metrics.topSeatBaseGap.toFixed(2)}`);
 if (metrics.bottomSeatBaseGap < 8) failures.push(`P4 base gap=${metrics.bottomSeatBaseGap.toFixed(2)}`);
 if (playerNames[5] !== '玩家5' || playerNames[6] !== '玩家6') failures.push(`desktop P5/P6 names=${playerNames[5]}/${playerNames[6]}`);
 if (metrics.progressAvatarCount !== 6) failures.push(`progressAvatarCount=${metrics.progressAvatarCount}`);
 if (metrics.progressAvatarColors[5] !== 'rgb(199, 185, 223)') failures.push(`P5 progress color=${metrics.progressAvatarColors[5]}`);
 if (metrics.progressAvatarColors[6] !== 'rgb(217, 207, 152)') failures.push(`P6 progress color=${metrics.progressAvatarColors[6]}`);
+const progressNames = Object.fromEntries(metrics.progressRows.map(row => [row.player, row.name]));
+const progressPercentages = Object.fromEntries(metrics.progressRows.map(row => [row.player, row.percentage]));
+if (metrics.progressRows.length !== 6) failures.push(`progressRows=${metrics.progressRows.length}`);
+if (progressNames[5] !== '玩家5' || progressNames[6] !== '玩家6') failures.push(`progress P5/P6 names=${progressNames[5]}/${progressNames[6]}`);
+if (Object.values(progressPercentages).some(value => value !== '0%')) failures.push(`progress percentages=${JSON.stringify(progressPercentages)}`);
 if (metrics.maxBaseHoleError > 0.9) failures.push(`base-hole alignment error=${metrics.maxBaseHoleError.toFixed(2)}`);
+if (JSON.stringify(activeSeatAfterTurnChange.desktop) !== JSON.stringify([4])) failures.push(`active desktop after turn=${JSON.stringify(activeSeatAfterTurnChange.desktop)}`);
+if (progressUpdate.width !== '42%' || progressUpdate.percentage !== '42%') failures.push(`progress update=${JSON.stringify(progressUpdate)}`);
+if (responsiveMetrics.desktop1280.hasOverflow || responsiveMetrics.tablet1000.hasOverflow || responsiveMetrics.mobile390.hasOverflow) {
+  failures.push(`responsive overflow=${JSON.stringify(responsiveMetrics)}`);
+}
+if (responsiveMetrics.desktop1280.visibleCardCount !== 6 || responsiveMetrics.tablet1000.visibleCardCount !== 6 || responsiveMetrics.mobile390.visibleCardCount !== 6) {
+  failures.push(`responsive card counts=${JSON.stringify(responsiveMetrics)}`);
+}
+if (aiBattleMetrics.title !== '人机对战-6人4棋子-标准模式') failures.push(`AI title=${aiBattleMetrics.title}`);
+if (JSON.stringify(aiBattleMetrics.names) !== JSON.stringify(['玩家', 'Bot-1', 'Bot-2', 'Bot-3', 'Bot-4', 'Bot-5'])) {
+  failures.push(`AI names=${JSON.stringify(aiBattleMetrics.names)}`);
+}
+if (JSON.stringify(aiBattleMetrics.progressNames) !== JSON.stringify(['玩家', 'Bot-1', 'Bot-2', 'Bot-3', 'Bot-4', 'Bot-5'])) {
+  failures.push(`AI progress names=${JSON.stringify(aiBattleMetrics.progressNames)}`);
+}
+if (JSON.stringify(aiBattleMetrics.activeSeat) !== JSON.stringify(['玩家'])) failures.push(`AI active seat=${JSON.stringify(aiBattleMetrics.activeSeat)}`);
 if (sparseP5Metrics.boardId !== 'classic6' || !sparseP5Metrics.sixLayerExists || !sparseP5Metrics.hasP5Chess) {
   failures.push(`sparse P1+P5 board=${JSON.stringify(sparseP5Metrics)}`);
 }
@@ -244,6 +348,7 @@ if (onlineNameMetrics.mobile5 !== '联机玩家5' || onlineNameMetrics.mobile6 !
 }
 if (mobileMetrics.topCards !== 3 || mobileMetrics.bottomCards !== 3) failures.push(`mobile cards=${mobileMetrics.topCards}+${mobileMetrics.bottomCards}`);
 if (mobileMetrics.player5Name !== '玩家5' || mobileMetrics.player6Name !== '玩家6') failures.push(`mobile P5/P6 names=${mobileMetrics.player5Name}/${mobileMetrics.player6Name}`);
+if (JSON.stringify(mobileMetrics.activeCards) !== JSON.stringify([1])) failures.push(`mobile active seats=${JSON.stringify(mobileMetrics.activeCards)}`);
 if (mobileMetrics.boardWidth > mobileMetrics.viewportWidth + 1) failures.push(`mobile board overflow=${mobileMetrics.boardWidth}/${mobileMetrics.viewportWidth}`);
 
 if (failures.length) {

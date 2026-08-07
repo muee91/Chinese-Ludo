@@ -46,6 +46,13 @@ function getConfiguredPlayerName(player) {
         const name = match?.name || match?.nickname || match?.username;
         if (name) return String(name);
     }
+
+    // AI 对战配置只保存 humanUsername/bots，Bot 名称由
+    // playerNameManager 在 handleUrlParameters 中生成；此时六人卡片
+    // 还未创建，不能依赖 updatePlayerName 的 DOM 扫描来补写名称。
+    const managedName = globalThis.window?.playerNameManager?.getPlayerName?.(player);
+    if (managedName) return String(managedName);
+
     return `玩家${player}`;
 }
 
@@ -104,14 +111,66 @@ function ensureProgressItems() {
     const content = document.querySelector('.progress-panel .progress-content');
     if (!content) return;
     PLAYERS.forEach(player => {
-        if (content.querySelector(`.progress-item[data-player="${player}"]`)) return;
-        const item = document.createElement('div');
-        item.className = 'progress-item';
-        item.dataset.player = String(player);
-        item.innerHTML = `
-            <div class="progress-avatar player-${player}"></div>
-            <div class="progress-bar"><div class="progress-fill player-${player}"></div></div>`;
-        content.appendChild(item);
+        let item = content.querySelector(`.progress-item[data-player="${player}"]`);
+        if (!item) {
+            item = document.createElement('div');
+            item.className = 'progress-item';
+            item.dataset.player = String(player);
+            content.appendChild(item);
+        }
+
+        let avatar = item.querySelector('.progress-avatar');
+        if (!avatar) {
+            avatar = document.createElement('div');
+            item.prepend(avatar);
+        }
+        avatar.className = `progress-avatar player-${player}`;
+
+        let details = item.querySelector('.progress-details');
+        if (!details) {
+            details = document.createElement('div');
+            details.className = 'progress-details';
+            const existingBar = item.querySelector('.progress-bar');
+            if (existingBar) existingBar.remove();
+            item.appendChild(details);
+        }
+
+        let header = details.querySelector('.progress-header');
+        if (!header) {
+            header = document.createElement('div');
+            header.className = 'progress-header';
+            details.prepend(header);
+        }
+
+        let name = header.querySelector('.progress-player-name');
+        if (!name) {
+            name = document.createElement('span');
+            name.className = 'progress-player-name';
+            header.prepend(name);
+        }
+        name.textContent = getConfiguredPlayerName(player);
+
+        let percentage = header.querySelector('.progress-percentage');
+        if (!percentage) {
+            percentage = document.createElement('span');
+            percentage.className = 'progress-percentage';
+            header.appendChild(percentage);
+        }
+        if (!percentage.textContent) percentage.textContent = '0%';
+
+        let bar = details.querySelector('.progress-bar');
+        if (!bar) {
+            bar = document.createElement('div');
+            bar.className = 'progress-bar';
+            details.appendChild(bar);
+        }
+
+        let fill = bar.querySelector('.progress-fill');
+        if (!fill) {
+            fill = document.createElement('div');
+            bar.appendChild(fill);
+        }
+        fill.className = `progress-fill player-${player}`;
     });
 }
 

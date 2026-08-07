@@ -7112,13 +7112,3 @@ use[href="#checkmark"] {
 .player-5-avatar{background:var(--player-5-color);border:2px solid var(--player-5-border);color:#fff}
 .player-6-avatar{background:var(--player-6-color);border:2px solid var(--player-6-border);color:#fff}
 .player-5-defeat{color:var(--player-5-color)} .player-6-defeat{color:var(--player-6-color)}
-body.six-player-mode .players-info{width:126%;height:100%}
-body.six-player-mode .players-info .six-seat-1{top:1%;left:50%;transform:translateX(-50%)}
-body.six-player-mode .players-info .six-seat-2{top:20%;right:0}
-body.six-player-mode .players-info .six-seat-3{bottom:16%;right:0}
-body.six-player-mode .players-info .six-seat-4{bottom:1%;left:50%;transform:translateX(-50%)}
-body.six-player-mode .players-info .six-seat-5{bottom:16%;left:0}
-body.six-player-mode .players-info .six-seat-6{top:20%;left:0}
-body.six-player-mode #board-svg{overflow:visible}
-body.six-player-mode #board-svg .six-ring-cell,body.six-player-mode #board-svg .six-finish-cell{opacity:.96}
-@media(max-width:768px){body.six-player-mode .players-top,body.six-player-mode .players-bottom{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;width:100%}body.six-player-mode .players-top .player-info,body.six-player-mode .players-bottom .player-info{position:static;transform:none;width:auto;justify-content:center}}

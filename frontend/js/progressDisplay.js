@@ -112,12 +112,25 @@ class ProgressDisplay {
             if (element) this.progressItems[player] = { element, fillElement: element.querySelector('.progress-fill') };
         }
         const item = this.progressItems[player];
-        if (!item || !item.fillElement) return;
+        if (!item || !item.element) return;
+
+        // 六人面板会在棋盘初始化时补齐名称/百分比并重建进度条结构；
+        // 重新抓取当前 DOM，避免沿用初始化阶段已脱离文档的旧引用。
+        const currentFillElement = item.element.querySelector('.progress-fill');
+        if (currentFillElement) item.fillElement = currentFillElement;
+        if (!item.fillElement) return;
 
         const percentage = Math.round(progress);
         
         // 更新进度条宽度
         item.fillElement.style.width = `${percentage}%`;
+
+        // 六人模式的紧凑进度项同时显示可读的百分比；classic4 没有
+        // 该元素时保持原有进度条行为不变。
+        const percentageElement = item.element.querySelector('.progress-percentage');
+        if (percentageElement) {
+            percentageElement.textContent = `${percentage}%`;
+        }
     }
 
     // 更新所有玩家的进度
