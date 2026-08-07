@@ -29,16 +29,17 @@ function buildHexRing(radius = 80, cellsPerSide = 13) {
         { x: -h, y: radius / 2 },
         { x: -h, y: -radius / 2 }
     ];
-    const points = [];
+    const raw = [];
     for (let side = 0; side < 6; side++) {
         const a = vertices[side];
         const b = vertices[(side + 1) % 6];
         for (let i = 0; i < cellsPerSide; i++) {
             const t = i / cellsPerSide;
-            points.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+            raw.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
         }
     }
-    return points;
+    // 让参考阵营的两个入口连接格落在六边形底部：保持绝对位置编号规则不变，只调整视觉索引起点。
+    return raw.map((_, index) => raw[(index + 1) % raw.length]);
 }
 
 const classic4 = Object.freeze({
@@ -69,26 +70,27 @@ const classic6 = Object.freeze({
     name: '经典六人',
     playerCount: 6,
     players: CLASSIC6_PLAYERS,
-    // 原四人棋盘四个阵营的入口相位相差13格；六人盘继续保持这一结构。
+    // 原四人棋盘各阵营入口相位相差13格；六阵营继续保持这一结构。
     sectorLength: 13,
     ringLength: 78,
-    // 与四人盘相同：公共环道总长度减去每方不可达的两个入口连接格。
+    // 与四人盘一致：每个玩家自己的两个入口连接格不在其50/76格公共行进序列中。
     outerEnd: 76,
     finishStart: 77,
     finishEnd: 82,
     finishLength: 6,
-    // 六种颜色循环，因此自身颜色格每6格出现一次。
+    // 六色循环，自身颜色格每6格出现一次。
     jumpInterval: 6,
     jumpPoints: buildJumpPoints(76, 6),
-    // 四人盘的飞行格是第5个自身颜色格：2,6,10,14,18。
+    // 原四人盘飞行格是第5个自身颜色格：2,6,10,14,18。
     // 六人盘保持同一语义：2,8,14,20,26。
     flightPredecessor: 20,
     flightPoint: 26,
-    // 四人盘 18 -> 30 跨越 (4-1) 个同色间隔；六人盘等价为 26 -> 56。
-    flightTarget: 56,
-    flightPostJump: 62,
+    // 按原四人 SVG 的几何关系推导：飞行线必须横跨对家第3个终点航道格。
+    // 六边形参考阵营中 26 -> 50 构成与原版 18 -> 30 对应的横向跨盘飞行线。
+    flightTarget: 50,
+    flightPostJump: 56,
     finishCrossIndex: 2,
-    // 参考坐标系使用4号阵营（下方）为0度；其余阵营每60度旋转。
+    // 参考阵营4位于下方，其他阵营每60度旋转。
     playerAngles: Object.freeze({ 1: 180, 2: 240, 3: 300, 4: 0, 5: 60, 6: 120 }),
     opponents: Object.freeze({ 1: 4, 2: 5, 3: 6, 4: 1, 5: 2, 6: 3 }),
     referencePlayer: 4,
@@ -96,11 +98,11 @@ const classic6 = Object.freeze({
     getFlightCrossPosition() { return this.finishStart + this.finishCrossIndex; },
     getRingPoints() { return buildHexRing(80, 13); },
     getRingColorPlayer(absoluteIndex) {
-        // 让玩家1的相对位置2为1号色；每个阵营入口相位13格，模6后恰好顺延一种颜色。
+        // 玩家1的相对位置2是1号色；13格阵营相位在六色循环下会自然顺延一色。
         return ((Number(absoluteIndex) + 4) % 6) + 1;
     },
     getBaseSlotPositions() {
-        // 与原版一样：所有阵营共用一套基础坐标，再由 playerAngles 旋转。
+        // 同原版：所有阵营共用一套参考坐标，再由玩家基础角度旋转。
         return [
             { x: -6.1, y: 91.5 }, { x: 6.1, y: 91.5 },
             { x: -6.1, y: 103.7 }, { x: 6.1, y: 103.7 }
@@ -109,18 +111,16 @@ const classic6 = Object.freeze({
     createMainTrack() {
         const ring = buildHexRing(80, 13);
         const track = [];
-        // 参考玩家4的公共入口相位为39。位置0是独立起飞跑道，不属于公共碰撞环道。
+        // 参考玩家4的入口相位为39；位置0是独立起飞跑道，不参与公共碰撞。
         const launchAnchor = ring[this.referenceOffset];
         track.push(scalePoint(launchAnchor, 1.085));
         for (let relative = 1; relative <= this.outerEnd; relative++) {
             track.push({ ...ring[(this.referenceOffset + relative) % this.ringLength] });
         }
-        // 外圈走完后，从参考玩家的入口连接点向中心进入6格终点航道。
+        // 原版终点航道相对外圈半径的比例：66/80,54/80,42/80,30/80,18/80,5/80。
         const entry = ring[(this.referenceOffset + this.outerEnd + 1) % this.ringLength];
-        for (let i = 0; i < this.finishLength; i++) {
-            const t = (i + 1) / (this.finishLength + 1);
-            track.push({ x: entry.x * (1 - t), y: entry.y * (1 - t) });
-        }
+        const finishScales = [0.825, 0.675, 0.525, 0.375, 0.225, 0.0625];
+        finishScales.forEach(scale => track.push(scalePoint(entry, scale)));
         return track;
     },
     rotatePoint
@@ -156,11 +156,15 @@ export function getCurrentBoardDefinition() {
 
 export function getAbsolutePositionForBoard(player, relativePosition, board = getCurrentBoardDefinition()) {
     if (relativePosition === -1) return -1;
-    if (relativePosition === 0) return -(100 + Number(player)); // 每个阵营独立起飞点，避免互撞。
+    if (relativePosition === 0) return -(100 + Number(player)); // 各阵营独立起飞点。
     if (relativePosition >= board.finishStart) return 1000 + Number(player) * 100 + relativePosition;
     if (relativePosition < 1 || relativePosition > board.outerEnd) return relativePosition;
     const offset = (Number(player) - 1) * board.sectorLength;
-    return (relativePosition + offset) % board.ringLength;
+    const canonical = (Number(relativePosition) + offset) % board.ringLength;
+    // 保持原四人映射语义：公共环道中玩家1不可达的两个入口连接格继续使用 -3/-2 表示。
+    if (canonical === board.ringLength - 1) return -3;
+    if (canonical === 0) return -2;
+    return canonical;
 }
 
 export function isJumpPointForBoard(position, board = getCurrentBoardDefinition()) {
