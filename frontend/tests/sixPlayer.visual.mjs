@@ -134,6 +134,27 @@ await desktop.page.screenshot({ path: path.join(outputDir, 'six-player-desktop.p
 await desktop.page.locator('.board-container').screenshot({ path: path.join(outputDir, 'six-player-board.png') });
 await desktop.context.close();
 
+// 只有2名参与者，但包含 P5 时也必须自动使用 classic6；不能只按“人数>4”判断。
+const sparseP5Config = {
+  mode: 'local_multiplayer',
+  playerCount: 2,
+  pieceCount: 4,
+  skillMode: false,
+  happyMode: false,
+  players: [
+    { id: 1, name: '稀疏玩家1', isAI: false },
+    { id: 5, name: '稀疏玩家5', isAI: false }
+  ]
+};
+const sparseP5 = await openSixPlayerPage({ width: 1000, height: 800 }, sparseP5Config);
+const sparseP5Metrics = await sparseP5.page.evaluate(() => ({
+  boardId: window.gameInstance.gameState.getBoardDefinition().id,
+  activePlayers: window.activePlayerManager.getActivePlayers(),
+  hasP5Chess: document.querySelectorAll('#board-svg use[href="#chess"].player-5').length === 4,
+  sixLayerExists: !!document.getElementById('classic6-board-layer')
+}));
+await sparseP5.context.close();
+
 // 昵称安全：HTML-looking 内容必须被当作普通文本，而不是插入 DOM。
 const maliciousName = '<img id="nickname-injection" src="x">玩家5';
 const maliciousConfig = JSON.parse(JSON.stringify(sixPlayerConfig));
@@ -181,7 +202,7 @@ await mobile.page.screenshot({ path: path.join(outputDir, 'six-player-mobile.png
 await mobile.context.close();
 await browser.close();
 
-console.log(JSON.stringify({ metrics, maliciousMetrics, onlineNameMetrics, mobileMetrics }, null, 2));
+console.log(JSON.stringify({ metrics, sparseP5Metrics, maliciousMetrics, onlineNameMetrics, mobileMetrics }, null, 2));
 
 const failures = [];
 const playerNames = Object.fromEntries(metrics.desktopCardRects.map(item => [item.player, item.name]));
@@ -200,6 +221,10 @@ if (metrics.progressAvatarCount !== 6) failures.push(`progressAvatarCount=${metr
 if (metrics.progressAvatarColors[5] !== 'rgb(199, 185, 223)') failures.push(`P5 progress color=${metrics.progressAvatarColors[5]}`);
 if (metrics.progressAvatarColors[6] !== 'rgb(217, 207, 152)') failures.push(`P6 progress color=${metrics.progressAvatarColors[6]}`);
 if (metrics.maxBaseHoleError > 0.9) failures.push(`base-hole alignment error=${metrics.maxBaseHoleError.toFixed(2)}`);
+if (sparseP5Metrics.boardId !== 'classic6' || !sparseP5Metrics.sixLayerExists || !sparseP5Metrics.hasP5Chess) {
+  failures.push(`sparse P1+P5 board=${JSON.stringify(sparseP5Metrics)}`);
+}
+if (JSON.stringify(sparseP5Metrics.activePlayers) !== JSON.stringify([1,5])) failures.push(`sparse active players=${JSON.stringify(sparseP5Metrics.activePlayers)}`);
 if (maliciousMetrics.player5Name !== maliciousName) failures.push(`unsafe nickname text=${maliciousMetrics.player5Name}`);
 if (maliciousMetrics.injectedElementExists) failures.push('nickname HTML was injected into DOM');
 if (onlineNameMetrics.desktop5 !== '联机玩家5' || onlineNameMetrics.desktop6 !== '联机玩家6') {
