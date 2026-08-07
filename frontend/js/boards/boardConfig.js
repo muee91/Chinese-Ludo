@@ -136,18 +136,62 @@ export function getBoardDefinition(id = 'classic4') {
     return BOARD_DEFINITIONS[id] || classic4;
 }
 
+function readPlayerNumber(player) {
+    if (player && typeof player === 'object') {
+        for (const value of [player.color, player.playerNumber, player.id]) {
+            const numeric = Number(value);
+            if (SUPPORTED_PLAYERS.includes(numeric)) return numeric;
+        }
+        return null;
+    }
+    const numeric = Number(player);
+    return SUPPORTED_PLAYERS.includes(numeric) ? numeric : null;
+}
+
+// classic6 的必要条件由“实际参与者”决定，而不是房间容量：
+// 1) 实际参与人数超过 4；或 2) 任一参与阵营为 P5/P6。
+export function resolveBoardIdForPlayers(players = [], playerCount = 0) {
+    const list = Array.isArray(players) ? players : [];
+    const playerNumbers = list.map(readPlayerNumber).filter(Number.isFinite);
+    const effectiveCount = Math.max(Number(playerCount) || 0, list.length, playerNumbers.length);
+    return effectiveCount > 4 || playerNumbers.some(player => player > 4) ? 'classic6' : 'classic4';
+}
+
 export function resolveBoardIdFromStorage() {
     if (typeof sessionStorage === 'undefined') return 'classic4';
     try {
         const local = JSON.parse(sessionStorage.getItem('gameConfig') || 'null');
-        if (local?.boardId) return local.boardId;
-        if (Number(local?.playerCount) > 4) return 'classic6';
+        if (local) {
+            const localPlayers = Array.isArray(local.players)
+                ? local.players
+                : [local.humanPlayer, ...(Array.isArray(local.bots) ? local.bots : [])].filter(value => value != null);
+            const inferredLocal = resolveBoardIdForPlayers(localPlayers, local.playerCount);
+            if (inferredLocal === 'classic6') return 'classic6';
+            if (local.boardId) return local.boardId;
+        }
+
         const multi = JSON.parse(sessionStorage.getItem('multiplayerGameData') || 'null');
-        const boardId = multi?.boardId || multi?.settings?.boardId || multi?.room?.settings?.boardId;
-        if (boardId) return boardId;
-        const maxPlayers = multi?.maxPlayers || multi?.settings?.maxPlayers || multi?.room?.settings?.maxPlayers;
-        if (Number(maxPlayers) > 4) return 'classic6';
-        if (Array.isArray(multi?.players) && multi.players.length > 4) return 'classic6';
+        if (multi) {
+            const multiPlayers = multi.players
+                || multi.room?.players
+                || multi.gameSession?.players
+                || multi.gameSession?.gameData?.players
+                || [];
+            const playerCount = multi.playerCount
+                || multi.gameData?.playerCount
+                || multi.gameSession?.gameData?.playerCount
+                || multi.room?.players?.length
+                || 0;
+            const inferredMulti = resolveBoardIdForPlayers(multiPlayers, playerCount);
+            if (inferredMulti === 'classic6') return 'classic6';
+
+            const boardId = multi.boardId
+                || multi.gameData?.boardId
+                || multi.gameSession?.gameData?.boardId
+                || multi.settings?.boardId
+                || multi.room?.settings?.boardId;
+            if (boardId) return boardId;
+        }
     } catch (error) {
         console.warn('[boardConfig] 读取棋盘配置失败，回退经典四人', error);
     }
