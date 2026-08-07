@@ -245,6 +245,14 @@ export function prepareBoardForCurrentMode() {
     const layer = make('g', { id: 'classic6-board-layer' });
     svg.appendChild(layer);
 
+    // #chess/#checkmark 的原始定义按 classic4 的 600px 棋盘缩放；
+    // 六人外环使用更大的舞台，单独放大符号本身，避免只放大棋盘
+    // 后棋子仍像小点。该 defs 只存在于当前页面，不影响 classic4。
+    const chessSymbol = defs?.querySelector('#chess');
+    const checkmarkSymbol = defs?.querySelector('#checkmark');
+    if (chessSymbol) chessSymbol.setAttribute('transform', `scale(${board.visual.chessScale ?? 0.34})`);
+    if (checkmarkSymbol) checkmarkSymbol.setAttribute('transform', `scale(${board.visual.chessScale ?? 0.34})`);
+
     const ring = board.getRingPoints();
     ring.forEach((point, absoluteIndex) => {
         const color = board.getRingColorPlayer(absoluteIndex);

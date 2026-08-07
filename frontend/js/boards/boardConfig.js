@@ -66,13 +66,18 @@ const classic4 = Object.freeze({
 
 const classic6Visual = Object.freeze({
     ringRadius: 112,
-    viewBoxRadius: 172,
-    ringCellScale: 0.72,
-    laneCellScale: 0.76,
-    baseScale: 0.8,
-    baseRadius: 148,
-    launchRadiusScale: 1.13,
-    endScale: 0.52,
+    // 让 78 格外环在和 classic4 相同的桌面视口中保持接近的视觉直径。
+    viewBoxRadius: 160,
+    // 六人外环更密集，沿用四人版的视觉重量而不是把 78 格压成细小色点。
+    ringCellScale: 0.90,
+    laneCellScale: 0.92,
+    // 基地和棋子需要与 classic4 的 4 架棋子保持同一可读尺寸。
+    baseScale: 1.40,
+    chessScale: 0.56,
+    baseRadius: 140,
+    // 基地向内收后，发射格回到与基地保持清晰间距的位置。
+    launchRadiusScale: 1.02,
+    endScale: 0.65,
     // 第3格使用 7/13 半径，精确落在 26→50 飞行线与对家终点航道的交点上。
     finishScales: Object.freeze([0.82, 0.68, 7 / 13, 0.40, 0.26, 0.12]),
     flightArrowFractions: Object.freeze([0.30, 0.58])

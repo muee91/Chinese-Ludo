@@ -6,7 +6,8 @@
  */
 
 body.six-player-mode {
-  --six-seat-gap: 10px;
+  /* 基地放大并贴近 viewBox 边缘后，席位需要再向外让出间距。 */
+  --six-seat-gap: -14px;
   --six-seat-border: rgba(61, 53, 45, 0.24);
 }
 
@@ -241,6 +242,11 @@ body.six-player-mode .progress-item[data-player="6"] .progress-player-name {
 
 /* 696-1260：控制区会按基础样式移动到棋盘下方，舞台仍保持独立正方形。 */
 @media (min-width: 696px) and (max-width: 1260px) {
+  /* 平板舞台更窄，席位回到舞台边缘内，避免放大基地后左右卡片越界。 */
+  body.six-player-mode {
+    --six-seat-gap: 0px;
+  }
+
   body.six-player-mode .game-container {
     width: 100%;
     max-width: 840px;

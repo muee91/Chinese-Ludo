@@ -96,9 +96,13 @@ assert.equal(b.getBaseSlotPositions().length, 4);
 
 // 视觉几何与规则编号解耦：放大六边形但不改变逻辑位置数量。
 assert.equal(b.visual.ringRadius, 112);
-assert.equal(b.visual.viewBoxRadius, 172);
-assert.equal(b.visual.ringCellScale, 0.72);
-assert.equal(b.visual.laneCellScale, 0.76);
+assert.equal(b.visual.viewBoxRadius, 160);
+assert.equal(b.visual.ringCellScale, 0.90);
+assert.equal(b.visual.laneCellScale, 0.92);
+assert.equal(b.visual.baseScale, 1.40);
+assert.equal(b.visual.chessScale, 0.56);
+assert.equal(b.visual.baseRadius, 140);
+assert.equal(b.visual.launchRadiusScale, 1.02);
 assert.deepEqual(b.visual.flightArrowFractions, [0.30, 0.58]);
 const ring = b.getRingPoints();
 assert.equal(ring.length, 78);

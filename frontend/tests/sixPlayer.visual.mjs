@@ -76,12 +76,18 @@ const metrics = await desktop.page.evaluate(() => {
   const rectOf = element => {
     if (!element) return null;
     const rect = element.getBoundingClientRect();
-    return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+    return {
+      left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom,
+      width: rect.width, height: rect.height
+    };
   };
   const p1Base = rectOf(document.getElementById('player1-start'));
   const p4Base = rectOf(document.getElementById('player4-start'));
   const topSeatBaseGap = p1Base && cardByPlayer[1] ? p1Base.top - cardByPlayer[1].bottom : -Infinity;
   const bottomSeatBaseGap = p4Base && cardByPlayer[4] ? cardByPlayer[4].top - p4Base.bottom : -Infinity;
+  const firstRingCell = rectOf(document.querySelector('#classic6-board-layer .six-ring-cell'));
+  const firstBase = rectOf(document.getElementById('player1-start'));
+  const firstChess = rectOf(document.querySelector('#board-svg use[href="#chess"].player-1'));
 
   const chess = [...document.querySelectorAll('#board-svg use[href="#chess"]')];
   const p4Chess = chess.filter(el => el.classList.contains('player-4')).map(el => ({
@@ -135,6 +141,9 @@ const metrics = await desktop.page.evaluate(() => {
     progressAvatarCount: document.querySelectorAll('.progress-content .progress-avatar').length,
     progressAvatarColors: { 5: progressColor(5), 6: progressColor(6) },
     progressRows,
+    ringCellWidth: firstRingCell?.width || 0,
+    baseWidth: firstBase?.width || 0,
+    chessWidth: firstChess?.width || 0,
     maxBaseHoleError: Math.max(...baseErrors),
     svgRect: svg ? svg.getBoundingClientRect().toJSON() : null
   };
@@ -307,6 +316,9 @@ if (metrics.desktopDefeatCounterCount !== 0) failures.push(`desktopDefeatCounter
 if (JSON.stringify(metrics.activeDesktopPlayers) !== JSON.stringify([1])) failures.push(`active desktop seats=${JSON.stringify(metrics.activeDesktopPlayers)}`);
 if (metrics.topSeatBaseGap < 8) failures.push(`P1 base gap=${metrics.topSeatBaseGap.toFixed(2)}`);
 if (metrics.bottomSeatBaseGap < 8) failures.push(`P4 base gap=${metrics.bottomSeatBaseGap.toFixed(2)}`);
+if (metrics.ringCellWidth < 24) failures.push(`ring cell too small=${metrics.ringCellWidth.toFixed(2)}`);
+if (metrics.baseWidth < 60) failures.push(`base too small=${metrics.baseWidth.toFixed(2)}`);
+if (metrics.chessWidth < 30) failures.push(`chess too small=${metrics.chessWidth.toFixed(2)}`);
 if (playerNames[5] !== '玩家5' || playerNames[6] !== '玩家6') failures.push(`desktop P5/P6 names=${playerNames[5]}/${playerNames[6]}`);
 if (metrics.progressAvatarCount !== 6) failures.push(`progressAvatarCount=${metrics.progressAvatarCount}`);
 if (metrics.progressAvatarColors[5] !== 'rgb(199, 185, 223)') failures.push(`P5 progress color=${metrics.progressAvatarColors[5]}`);
