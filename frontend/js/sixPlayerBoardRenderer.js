@@ -62,7 +62,7 @@ function ensureProgressItems() {
         const item = document.createElement('div');
         item.className = 'progress-item';
         item.dataset.player = String(player);
-        item.innerHTML = `<div class="progress-avatar player-${player}"></div><div class="progress-bar"><div class="progress-fill player-${player}"></div></div>`;
+        item.innerHTML = `<div class="progress-bar"><div class="progress-fill player-${player}"></div></div>`;
         content.appendChild(item);
     });
 }
@@ -100,6 +100,12 @@ function ensureSixPlayerPanels() {
     ensureDebugPlayers();
 }
 
+function ringCellAngle(ring, index) {
+    const previous = ring[(index - 1 + ring.length) % ring.length];
+    const next = ring[(index + 1) % ring.length];
+    return Math.atan2(next.y - previous.y, next.x - previous.x) * 180 / Math.PI + 90;
+}
+
 export function prepareBoardForCurrentMode() {
     const board = getCurrentBoardDefinition();
     if (board.id !== 'classic6') return board;
@@ -121,11 +127,13 @@ export function prepareBoardForCurrentMode() {
     const ring = board.getRingPoints();
     ring.forEach((point, absoluteIndex) => {
         const color = board.getRingColorPlayer(absoluteIndex);
+        const angle = ringCellAngle(ring, absoluteIndex);
         const cell = make('use', {
             href: '#vr2',
             x: point.x,
             y: point.y,
             class: `player-${color} six-ring-cell`,
+            transform: `rotate(${angle} ${point.x} ${point.y})`,
             'data-ring-pos': absoluteIndex,
             'data-cpos': absoluteIndex
         });
@@ -142,12 +150,11 @@ export function prepareBoardForCurrentMode() {
     board.players.forEach(player => {
         const angle = board.playerAngles[player];
         const rotatedBaseCenter = rotate(baseCenter, angle);
+        // #start 自身以(0,0)为中心，使用 translate+rotate 避免 x/y 与 transform 双重旋转。
         layer.appendChild(make('use', {
             href: '#start',
-            x: rotatedBaseCenter.x,
-            y: rotatedBaseCenter.y,
             class: `player-${player}`,
-            transform: `rotate(${angle} 0 0)`
+            transform: `translate(${rotatedBaseCenter.x} ${rotatedBaseCenter.y}) rotate(${angle})`
         }));
 
         // 独立起飞跑道：对应逻辑位置0，不参与公共环道碰撞。
@@ -155,6 +162,7 @@ export function prepareBoardForCurrentMode() {
         layer.appendChild(make('use', {
             href: '#vr2', x: launch.x, y: launch.y,
             class: `player-${player} six-launch-cell`,
+            transform: `rotate(${angle} ${launch.x} ${launch.y})`,
             'data-cpos': 0, 'data-player': player
         }));
 
@@ -163,15 +171,16 @@ export function prepareBoardForCurrentMode() {
             layer.appendChild(make('use', {
                 href: '#vr2', x: point.x, y: point.y,
                 class: `player-${player} six-finish-cell`,
+                transform: `rotate(${angle} ${point.x} ${point.y})`,
                 'data-cpos': pos, 'data-player': player
             }));
         }
 
-        const endPos = rotate({ x: 0, y: 0 }, angle);
+        // 六个终点三角继续使用原版 #end，围绕中心旋转。
         layer.appendChild(make('use', {
-            href: '#end', x: endPos.x, y: endPos.y,
+            href: '#end',
             class: `player-${player}`,
-            transform: `rotate(${angle + 180} 0 0) scale(.58)`
+            transform: `rotate(${angle} 0 0) scale(.58)`
         }));
 
         const flightStart = rotate(baseTrack[board.flightPoint], angle);
