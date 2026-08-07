@@ -4,8 +4,15 @@
  */
 class PlayerNameManager {
     constructor() {
-        // 存储玩家名称的映射，键为玩家编号(1-4)，值为玩家名称
-        this.playerNames = {
+        // 存储玩家名称的映射，键为玩家编号(1-6)，值为玩家名称
+        this.playerNames = this.createDefaultPlayerNames();
+
+        // 默认Bot名称
+        this.defaultBotNames = ['Bot-1', 'Bot-2', 'Bot-3'];
+    }
+
+    createDefaultPlayerNames() {
+        return {
             1: '玩家1',
             2: '玩家2',
             3: '玩家3',
@@ -13,14 +20,11 @@ class PlayerNameManager {
             5: '玩家5',
             6: '玩家6'
         };
-
-        // 默认Bot名称
-        this.defaultBotNames = ['Bot-1', 'Bot-2', 'Bot-3'];
     }
 
     /**
      * 设置玩家名称
-     * @param {number} playerNumber - 玩家编号 (1-4)
+     * @param {number} playerNumber - 玩家编号 (1-6)
      * @param {string} name - 玩家名称
      */
     setPlayerName(playerNumber, name) {
@@ -31,7 +35,7 @@ class PlayerNameManager {
 
     /**
      * 获取玩家名称
-     * @param {number} playerNumber - 玩家编号 (1-4)
+     * @param {number} playerNumber - 玩家编号 (1-6)
      * @returns {string} 玩家名称
      */
     getPlayerName(playerNumber) {
@@ -90,12 +94,7 @@ class PlayerNameManager {
      * 重置所有玩家名称为默认值
      */
     reset() {
-        this.playerNames = {
-            1: '玩家1',
-            2: '玩家2',
-            3: '玩家3',
-            4: '玩家4'
-        };
+        this.playerNames = this.createDefaultPlayerNames();
     }
 
     /**
