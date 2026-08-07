@@ -98,7 +98,7 @@ await page.waitForFunction(() => window.gameInstance.gameState.getGamePhase() ==
 await clickChess(5, 0);
 await page.waitForFunction(() => {
   const gs = window.gameInstance.gameState;
-  return gs.playerChess[5][0].position === 0 && gs.getCurrentPlayer() === 6 && !gs.getIsChessMoving();
+  return gs.playerChess[5][0].position === 0 && gs.getCurrentPlayer() === 6 && !gs.chessMoving;
 }, null, { timeout: 8000 });
 
 // P6：偶数起飞，并从最后一个玩家正确轮回到 P1。
@@ -108,7 +108,7 @@ await page.waitForFunction(() => window.gameInstance.gameState.getGamePhase() ==
 await clickChess(6, 0);
 await page.waitForFunction(() => {
   const gs = window.gameInstance.gameState;
-  return gs.playerChess[6][0].position === 0 && gs.getCurrentPlayer() === 1 && !gs.getIsChessMoving();
+  return gs.playerChess[6][0].position === 0 && gs.getCurrentPlayer() === 1 && !gs.chessMoving;
 }, null, { timeout: 8000 });
 
 // P5 已起飞棋子正常按骰子前进 3 格。
@@ -118,7 +118,7 @@ await page.waitForFunction(() => window.gameInstance.gameState.getGamePhase() ==
 await clickChess(5, 0);
 await page.waitForFunction(() => {
   const gs = window.gameInstance.gameState;
-  return gs.playerChess[5][0].position === 3 && !gs.getIsChessMoving();
+  return gs.playerChess[5][0].position === 3 && !gs.chessMoving;
 }, null, { timeout: 10000 });
 
 // P5 飞棋：把 P5 放到飞行格 26；对家 P2 的第 3 个终点航道格 79 放一枚单棋。
