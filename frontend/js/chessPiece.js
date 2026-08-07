@@ -650,7 +650,7 @@ class ChessPiece {
                 // 如果移动后会超过位置56（终点），则需要反弹
                 if (targetPosition > this.gameState.getFinishEnd() && currentPosition < this.gameState.getFinishEnd()) {
                     needsBounce = true;
-                    bounceSteps = targetPosition - 56;
+                    bounceSteps = targetPosition - this.gameState.getFinishEnd();
                     console.log(`[反弹检测] 从位置${currentPosition}投掷${steps}点会到达${targetPosition}，超出终点，需要反弹${bounceSteps}步`);
                 }
             }
@@ -663,7 +663,7 @@ class ChessPiece {
                 stepsToMove = this.gameState.getFinishEnd() - currentPosition; // 移动到终点
             } else {
                 // 欢乐模式：超出终点直接到终点
-                if (this.gameState.isHappyMode() && currentPosition + steps > 56) {
+                if (this.gameState.isHappyMode() && currentPosition + steps > this.gameState.getFinishEnd()) {
                     stepsToMove = this.gameState.getFinishEnd() - currentPosition;
                 } else {
                     stepsToMove = steps; // 正常移动
@@ -840,7 +840,7 @@ class ChessPiece {
             }
             // 第三阶段：如果需要终点反弹，从终点往后退
         else if (needsBounce && currentPosition === this.gameState.getFinishEnd()) {
-            console.log(`[终点反弹] 玩家${player}的棋子${chessIndex}从位置56反弹${bounceSteps}步，最终位置${56 - bounceSteps}`);
+            console.log(`[终点反弹] 玩家${player}的棋子${chessIndex}从终点反弹${bounceSteps}步，最终位置${this.gameState.getFinishEnd() - bounceSteps}`);
 
             // 记录终点反弹步数
             this.gameState.recordBounceSteps(player, bounceSteps);
@@ -1452,9 +1452,9 @@ class ChessPiece {
             return false;
         }
 
-        // 额外检查：如果棋子位置为56（终点），也不能移动
+        // 额外检查：如果棋子位于终点，也不能移动
         if (chess.position === this.gameState.getFinishEnd()) {
-            console.log(`[canChessMove] 棋子${chessIndex}位置为56（终点），不能移动`);
+            console.log(`[canChessMove] 棋子${chessIndex}位于终点，不能移动`);
             return false;
         }
 
@@ -1466,14 +1466,14 @@ class ChessPiece {
         // 棋子在轨道上，检查是否可以移动
         const newPosition = chess.position + diceValue;
 
-        // 如果棋子在终点通道（位置51-56），支持反弹机制，任何点数都可以移动
-        if (chess.position >= 51 && chess.position < 56) {
+        // 如果棋子在终点通道（终点通道），支持反弹机制，任何点数都可以移动
+        if (chess.position >= this.gameState.getFinishStart() && chess.position < this.gameState.getFinishEnd()) {
             return true;
         }
 
         // 如果棋子在普通轨道（0-50），可以移动并支持反弹
         // 注意：不再限制点数+位置不能超过56，因为可以反弹
-        if (chess.position >= 0 && chess.position <= 50) {
+        if (chess.position >= 0 && chess.position <= this.gameState.getOuterTrackEnd()) {
             return true;
         }
 

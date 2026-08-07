@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "server": "node server.cjs",
     "start": "concurrently \"npm run server\" \"npm run dev\"",
-    "test:six-player": "node js/boards/classic6.test.mjs"
+    "test:six-player": "node js/boards/classic4Compatibility.test.mjs && node js/boards/classic6.test.mjs"
   },
   "devDependencies": {
     "vite": "^7.1.7",

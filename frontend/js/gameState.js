@@ -11,7 +11,7 @@ class GameState {
         this.maxPlayers = this.boardDefinition.playerCount;
 
         // 游戏基础状态
-        this.currentPlayer = null; // 当前玩家 (1-4)，初始设为null以确保首次设置时触发日志
+        this.currentPlayer = null; // 当前玩家 (1-6，实际参与者由 activePlayerManager 控制)，初始设为null以确保首次设置时触发日志
         this.gamePhase = 'rolling'; // 游戏阶段: waiting, rolling, selecting, moving, finished
         this.diceValue = 0; // 骰子点数
         this.selectedChess = null; // 选中的棋子
@@ -506,7 +506,7 @@ class GameState {
             // 如果棋子已完成，跳过
             if (chess.finished) continue;
 
-            // 如果棋子在起始区域，只有摇到6才能出发
+            // 如果棋子在起始区域，按原中国飞行棋规则：偶数可起飞
             if (chess.position === -1) {
                 if (diceValue % 2 === 0) {
                     movableChess.push(i);
