@@ -105,6 +105,11 @@ const metrics = await desktop.page.evaluate(() => {
     point.y - expected[index].y
   ));
 
+  const progressColor = player => {
+    const avatar = document.querySelector(`.progress-item[data-player="${player}"] .progress-avatar`);
+    return avatar ? getComputedStyle(avatar).backgroundColor : '';
+  };
+
   return {
     boardId: svg?.dataset.boardId,
     ringCount: document.querySelectorAll('#classic6-board-layer .six-ring-cell').length,
@@ -118,6 +123,7 @@ const metrics = await desktop.page.evaluate(() => {
     topSeatBaseGap,
     bottomSeatBaseGap,
     progressAvatarCount: document.querySelectorAll('.progress-content .progress-avatar').length,
+    progressAvatarColors: { 5: progressColor(5), 6: progressColor(6) },
     maxBaseHoleError: Math.max(...baseErrors),
     svgRect: svg ? svg.getBoundingClientRect().toJSON() : null
   };
@@ -156,6 +162,8 @@ if (metrics.topSeatBaseGap < 8) failures.push(`P1 base gap=${metrics.topSeatBase
 if (metrics.bottomSeatBaseGap < 8) failures.push(`P4 base gap=${metrics.bottomSeatBaseGap.toFixed(2)}`);
 if (playerNames[5] !== '玩家5' || playerNames[6] !== '玩家6') failures.push(`desktop P5/P6 names=${playerNames[5]}/${playerNames[6]}`);
 if (metrics.progressAvatarCount !== 6) failures.push(`progressAvatarCount=${metrics.progressAvatarCount}`);
+if (metrics.progressAvatarColors[5] !== 'rgb(199, 185, 223)') failures.push(`P5 progress color=${metrics.progressAvatarColors[5]}`);
+if (metrics.progressAvatarColors[6] !== 'rgb(217, 207, 152)') failures.push(`P6 progress color=${metrics.progressAvatarColors[6]}`);
 if (metrics.maxBaseHoleError > 0.9) failures.push(`base-hole alignment error=${metrics.maxBaseHoleError.toFixed(2)}`);
 if (mobileMetrics.topCards !== 3 || mobileMetrics.bottomCards !== 3) failures.push(`mobile cards=${mobileMetrics.topCards}+${mobileMetrics.bottomCards}`);
 if (mobileMetrics.player5Name !== '玩家5' || mobileMetrics.player6Name !== '玩家6') failures.push(`mobile P5/P6 names=${mobileMetrics.player5Name}/${mobileMetrics.player6Name}`);
