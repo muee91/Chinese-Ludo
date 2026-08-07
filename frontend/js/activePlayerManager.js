@@ -7,7 +7,8 @@ class ActivePlayerManager {
     }
     setActivePlayers(playerNumbers) {
         if (!Array.isArray(playerNumbers)) return;
-        this.activePlayers = playerNumbers.filter((num, index) => SUPPORTED_PLAYERS.includes(Number(num)) && playerNumbers.indexOf(num) === index).map(Number);
+        const normalized = playerNumbers.map(Number).filter(num => SUPPORTED_PLAYERS.includes(num));
+        this.activePlayers = [...new Set(normalized)];
         this.currentActiveIndex = 0;
         this.updatePlayerVisibility();
     }
