@@ -24,7 +24,6 @@ assert.equal(getAbsolutePositionForBoard(3, 1, b), 27);
 assert.equal(getAbsolutePositionForBoard(4, 1, b), 40);
 assert.equal(getAbsolutePositionForBoard(5, 1, b), 53);
 assert.equal(getAbsolutePositionForBoard(6, 1, b), 66);
-// 原版 -3/-2 两个入口连接格的映射语义必须保留。
 assert.equal(getAbsolutePositionForBoard(6, 12, b), -3);
 assert.equal(getAbsolutePositionForBoard(6, 13, b), -2);
 
@@ -48,6 +47,19 @@ const track = b.createMainTrack();
 assert.equal(track.length, 83);
 assert.notDeepEqual(track[0], track[1], '起飞点必须独立于公共外圈第一格');
 assert.equal(b.getBaseSlotPositions().length, 4);
+
+// 视觉几何与规则编号解耦：放大六边形但不改变逻辑位置数量。
+assert.equal(b.visual.ringRadius, 112);
+assert.equal(b.visual.viewBoxRadius, 172);
+assert.equal(b.visual.ringCellScale, 0.72);
+assert.equal(b.visual.laneCellScale, 0.76);
+assert.deepEqual(b.visual.flightArrowFractions, [0.30, 0.58]);
+const ring = b.getRingPoints();
+assert.equal(ring.length, 78);
+const firstSpacing = Math.hypot(ring[1].x - ring[0].x, ring[1].y - ring[0].y);
+assert.ok(firstSpacing > 8.5, '六边形相邻格必须留出足够中心距，避免原SVG格子重叠');
+const baseRadius = Math.hypot(...Object.values(b.getBaseSlotPositions()[0]));
+assert.ok(baseRadius > b.visual.ringRadius + 20, '基地必须明显位于公共环道外侧');
 
 // 参考玩家4的飞行线应近似水平，并穿过对家玩家1的第3个终点航道格。
 const start = track[b.flightPoint];
