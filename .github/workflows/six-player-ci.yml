@@ -74,14 +74,14 @@ jobs:
           test -f frontend/dist/index.html
           test -f frontend/dist/spectate.html
           test ! -f frontend/dist/six-player.html
-      - name: Install Playwright browser smoke dependency
-        run: |
-          npm install --no-save --package-lock=false -w frontend playwright@1.54.2
-          npm exec -w frontend -- playwright install --with-deps chromium
+      - name: Install Chromium for visual smoke
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
       - name: Run real browser six-player visual smoke
+        working-directory: frontend
         run: |
           mkdir -p /tmp/six-player-visual
-          npm exec -w frontend -- vite preview --host 127.0.0.1 --port 4173 > /tmp/six-player-vite.log 2>&1 &
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/six-player-vite.log 2>&1 &
           VITE_PID=$!
           trap 'kill $VITE_PID || true' EXIT
           READY=0
@@ -90,7 +90,6 @@ jobs:
             sleep 1
           done
           if [ "$READY" != "1" ]; then cat /tmp/six-player-vite.log; exit 1; fi
-          cd frontend
           SIX_PLAYER_PREVIEW_URL=http://127.0.0.1:4173 \
           SIX_PLAYER_SCREENSHOT_DIR=/tmp/six-player-visual \
           node tests/sixPlayer.visual.mjs
