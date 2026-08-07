@@ -84,7 +84,7 @@ export async function beatChessAtPosition(absolutePosition, currentPlayer, gameS
 
     // 只在外圈轨道（0-50 以及玩家1到不了的位置-2和-3，排除基地-1）检查beat操作
     // 位置51及以上（终点航道）每个玩家独立，不应该有beat检测
-    if (absolutePosition === -1 || (!allowFinishLaneBeat && absolutePosition >= 51)) {
+    if (absolutePosition === -1 || (!allowFinishLaneBeat && absolutePosition >= getCurrentBoardDefinition().finishStart)) {
         return { hasBeat: false };
     }
 
@@ -92,7 +92,8 @@ export async function beatChessAtPosition(absolutePosition, currentPlayer, gameS
     const playerChess = gameState.getPlayerChess ? gameState.getPlayerChess() : gameState.playerChess;
     const pieceCount = gameState.pieceCount || 4; // 获取当前棋子个数，默认为4
     let targetChess = null;
-    for (const player of SUPPORTED_PLAYERS) { if (targetChess) break; {
+    for (const player of SUPPORTED_PLAYERS) {
+        if (targetChess) break;
         if (player === currentPlayer) continue; // 跳过当前玩家
         for (let chessIndex = 0; chessIndex < pieceCount; chessIndex++) {
             const chess = playerChess[player][chessIndex];
@@ -186,7 +187,7 @@ export function calculateChessProgress(chess, player) {
     if (chess.position >= 0 && chess.position <= 50) {
         // 外圈轨道
         currentSteps = chess.position;
-    } else if (chess.position >= 51 && chess.position <= 56) {
+    } else if (chess.position >= getCurrentBoardDefinition().finishStart && chess.position <= 56) {
         // 终点航道
         currentSteps = 51 + (chess.position - 51);
     }
@@ -207,7 +208,7 @@ export function getOpponentPlayer(player) { return getOpponentForBoard(player, g
 export function hasOtherPlayerChessAtPosition(currentPlayer, position, gameState) {
     if (!gameState || !gameState.playerChess) return -1;
     // 终点通道（>=51）每玩家独立，不参与碰撞检测
-    if (position >= 51) return -1;
+    if (position >= getCurrentBoardDefinition().finishStart) return -1;
     const currentAbsolutePos = getAbsolutePosition(currentPlayer, position);
     if (currentAbsolutePos < 0) return -1;
 
@@ -217,7 +218,7 @@ export function hasOtherPlayerChessAtPosition(currentPlayer, position, gameState
         const chesses = gameState.playerChess[p];
         if (!Array.isArray(chesses)) continue;
         for (const chess of chesses) {
-            if (chess && !chess.finished && chess.position >= 0 && chess.position < 51) {
+            if (chess && !chess.finished && chess.position >= 0 && chess.position < getCurrentBoardDefinition().finishStart) {
                 const otherAbsolutePos = getAbsolutePosition(p, chess.position);
                 if (otherAbsolutePos === currentAbsolutePos) {
                     return p; // 返回被撞的玩家编号
@@ -234,7 +235,7 @@ export function hasOtherPlayerChessAtPosition(currentPlayer, position, gameState
  */
 export function getEnemyChessCountAtPosition(currentPlayer, position, gameState) {
     if (!gameState || !gameState.playerChess) return 0;
-    if (position >= 51) return 0;
+    if (position >= getCurrentBoardDefinition().finishStart) return 0;
     const currentAbsolutePos = getAbsolutePosition(currentPlayer, position);
     if (currentAbsolutePos < 0) return 0;
 
@@ -245,7 +246,7 @@ export function getEnemyChessCountAtPosition(currentPlayer, position, gameState)
         const chesses = gameState.playerChess[p];
         if (!Array.isArray(chesses)) continue;
         for (const chess of chesses) {
-            if (chess && !chess.finished && chess.position >= 0 && chess.position < 51) {
+            if (chess && !chess.finished && chess.position >= 0 && chess.position < getCurrentBoardDefinition().finishStart) {
                 const otherAbsolutePos = getAbsolutePosition(p, chess.position);
                 if (otherAbsolutePos === currentAbsolutePos) {
                     count++;
