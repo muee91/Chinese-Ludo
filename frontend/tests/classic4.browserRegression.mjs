@@ -99,7 +99,30 @@ assert(flight.moverPosition === 34, `classic4 P1 flight final=${flight.moverPosi
 assert(flight.victimPosition === -1, `classic4 P3 crossing victim final=${flight.victimPosition}`);
 assert(flight.opponent === 3, `classic4 opponent=${flight.opponent}`);
 
-console.log(JSON.stringify({ initial, flight }, null, 2));
+// 结算 UI 也必须保持四人范围：4 张排名卡；每张只显示另外 3 个激活玩家的击败项。
+const settlement = await page.evaluate(() => {
+  const game = window.gameInstance;
+  window.activePlayerManager.setActivePlayers([1,2,3,4]);
+  game.settlementModal.hide?.();
+  game.settlementModal.show(1);
+
+  const cards = [...document.querySelectorAll('#settlement-rankings .ranking-item')];
+  const defeatCountsPerCard = cards.map(card => card.querySelectorAll('.ranking-defeats .defeat-count').length);
+  const hasP5Badge = !!document.querySelector('#settlement-rankings .ranking-defeats .player-5-defeat');
+  const hasP6Badge = !!document.querySelector('#settlement-rankings .ranking-defeats .player-6-defeat');
+  return {
+    cardCount: cards.length,
+    defeatCountsPerCard,
+    hasP5Badge,
+    hasP6Badge
+  };
+});
+
+assert(settlement.cardCount === 4, `classic4 settlement cards=${settlement.cardCount}`);
+assert(settlement.defeatCountsPerCard.every(count => count === 3), `classic4 settlement defeat badges=${JSON.stringify(settlement.defeatCountsPerCard)}`);
+assert(!settlement.hasP5Badge && !settlement.hasP6Badge, `classic4 settlement leaked P5/P6=${JSON.stringify(settlement)}`);
+
+console.log(JSON.stringify({ initial, flight, settlement }, null, 2));
 console.log('classic4 browser regression passed');
 
 await context.close();
