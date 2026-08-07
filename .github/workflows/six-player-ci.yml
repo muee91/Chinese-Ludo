@@ -66,6 +66,8 @@ jobs:
           grep -q "opponents: Object.freeze({ 1: 4, 2: 5, 3: 6" frontend/js/boards/boardConfig.js
           grep -q "maxPlayers: 6" backend/server.cjs
           grep -q "boardId: room.settings.boardId" backend/server.cjs
+          grep -q "\[1, 2, 3, 4\].includes(pieceCount)" backend/server.cjs
+          ! grep -q "\[1, 2, 3, 4, 5, 6\].includes(pieceCount)" backend/server.cjs
           ! grep -q "totalPlayerCount >= 4" backend/server.cjs
           grep -q "'player-5-color', 'player-6-color'" frontend/js/multiplayerManager.js
           grep -q "gameState.getFinishEnd()" frontend/js/botController.js
