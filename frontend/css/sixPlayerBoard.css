@@ -1,0 +1,63 @@
+/* 六人棋盘专用桌面布局。规则与坐标逻辑仍由 boardConfig / renderer 管理。 */
+@media (min-width: 769px) {
+  body.six-player-mode .board-container {
+    overflow: visible;
+    margin-top: 64px;
+    margin-bottom: 88px;
+  }
+
+  body.six-player-mode .board-container > .players-info {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  body.six-player-mode .board-container > .players-info > .player-info {
+    position: absolute !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    margin: 0 !important;
+    pointer-events: auto;
+  }
+
+  body.six-player-mode .board-container > .players-info > .six-seat-1 {
+    top: -60px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
+
+  body.six-player-mode .board-container > .players-info > .six-seat-2 {
+    top: 17% !important;
+    right: -112px !important;
+    transform: none !important;
+  }
+
+  body.six-player-mode .board-container > .players-info > .six-seat-3 {
+    bottom: 17% !important;
+    right: -112px !important;
+    transform: none !important;
+  }
+
+  body.six-player-mode .board-container > .players-info > .six-seat-4 {
+    bottom: -72px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
+
+  body.six-player-mode .board-container > .players-info > .six-seat-5 {
+    bottom: 17% !important;
+    left: -112px !important;
+    transform: none !important;
+  }
+
+  body.six-player-mode .board-container > .players-info > .six-seat-6 {
+    top: 17% !important;
+    left: -112px !important;
+    transform: none !important;
+  }
+}
