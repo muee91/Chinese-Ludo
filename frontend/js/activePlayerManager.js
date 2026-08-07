@@ -1,8 +1,8 @@
-import { SUPPORTED_PLAYERS } from './boards/boardConfig.js';
+import { SUPPORTED_PLAYERS, getCurrentBoardDefinition } from './boards/boardConfig.js';
 
 class ActivePlayerManager {
     constructor() {
-        this.activePlayers = [1, 2, 3, 4];
+        this.activePlayers = [...getCurrentBoardDefinition().players];
         this.currentActiveIndex = 0;
     }
     setActivePlayers(playerNumbers) {
@@ -33,6 +33,6 @@ class ActivePlayerManager {
         }
     }
     getActivePlayerCount() { return this.activePlayers.length; }
-    reset() { this.activePlayers = [1,2,3,4]; this.currentActiveIndex = 0; this.updatePlayerVisibility(); }
+    reset() { this.activePlayers = [...getCurrentBoardDefinition().players]; this.currentActiveIndex = 0; this.updatePlayerVisibility(); }
 }
 export const activePlayerManager = new ActivePlayerManager();

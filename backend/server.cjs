@@ -149,7 +149,7 @@ class RoomManager {
     // 房间满员：计算已占用席位 = 真实玩家 + AI 玩家
     const aiCount = room.settings?.aiPlayers ? room.settings.aiPlayers.length : 0;
     const totalPlayerCount = room.players.size + aiCount;
-    if (totalPlayerCount >= 4) throw new Error('房间已满');
+    if (totalPlayerCount >= (room.settings?.maxPlayers ?? 6)) throw new Error('房间已满');
     // 取消房间销毁定时器
     if (this.roomDestroyTimers.has(roomCode)) {
       clearTimeout(this.roomDestroyTimers.get(roomCode));
@@ -191,7 +191,7 @@ class RoomManager {
       const aiCount = room.settings?.aiPlayers ? room.settings.aiPlayers.length : 0;
       const totalPlayerCount = room.players.size + aiCount;
       if (totalPlayerCount === 0) continue;
-      if (totalPlayerCount >= 4 && room.gameState !== 'playing') continue;
+      if (totalPlayerCount >= (room.settings?.maxPlayers ?? 6) && room.gameState !== 'playing') continue;
 
       summaries.push({
         code: room.code,
@@ -200,8 +200,8 @@ class RoomManager {
         skillMode: !!(room.settings?.skillMode),
         happyMode: !!(room.settings?.happyMode),
         playerCount: totalPlayerCount, // 包含AI玩家的总人数
-        maxPlayers: 6,
-                boardId: Number(maxPlayers) > 4 ? 'classic6' : 'classic4',
+        maxPlayers: room.settings?.maxPlayers ?? 6,
+        boardId: room.settings?.boardId || (totalPlayerCount > 4 ? 'classic6' : 'classic4'),
         gameState: room.gameState,
         createdAt: room.createdAt,
         playerIds: Array.from(room.players.keys()) // 玩家ID列表，用于前端匹配身份
@@ -404,6 +404,8 @@ class GameSession {
     // 初始化游戏数据
     this.gameData = {
       gameSessionId: gameSessionId, // 添加gameSessionId以支持重连
+      boardId: players.length > 4 ? 'classic6' : 'classic4',
+      playerCount: players.length,
       gameStartTime: Date.now(),
       currentPlayer: null,
       gamePhase: 'rolling',
@@ -512,7 +514,7 @@ class Room {
     this.gameState = 'waiting';
     this.gameSessionId = null;
     this.postGameHostId = null; // 游戏结束后，首次返回房间的玩家ID（用于锁定房主）
-    this.settings = { pieceCount: 4, aiPlayers: [], skillMode: false, happyMode: false };
+    this.settings = { pieceCount: 4, aiPlayers: [], skillMode: false, happyMode: false, maxPlayers: 6, boardId: 'classic4' };
     this.spectators = new Set(); // 观战者ID集合
     this.roomChatHistory = []; // 房间聊天历史（最多50条）
     this.createdAt = Date.now(); // 房间创建时间
@@ -1813,7 +1815,7 @@ function handleJoinRoom(ws, playerId, message) {
   // 房间满员：计算已占用席位 = 真实玩家 + AI 玩家
   const aiCount = room.settings?.aiPlayers ? room.settings.aiPlayers.length : 0;
   const totalPlayerCount = room.players.size + aiCount;
-  if (totalPlayerCount >= 4) {
+  if (totalPlayerCount >= (room.settings?.maxPlayers ?? 6)) {
     ws.send(JSON.stringify({ type: 'error', message: '房间已满' }));
     return;
   }
@@ -2497,7 +2499,7 @@ function handleStartGame(ws, playerId) {
   const realPlayers = Array.from(room.players.values()).map(p => ({
     id: p.id,
     color: p.color,
-    playerNumber: p.color,  // 玩家编号等于颜色编号（1-4）
+    playerNumber: p.color,  // 玩家编号等于颜色编号（1-6）
     nickname: p.nickname,
     emoji: p.emoji,
     isAI: false,
@@ -2507,7 +2509,7 @@ function handleStartGame(ws, playerId) {
   const aiPlayers = room.settings.aiPlayers.map(ai => ({
     id: ai.color,
     color: ai.color,
-    playerNumber: ai.color,  // 玩家编号等于颜色编号（1-4）
+    playerNumber: ai.color,  // 玩家编号等于颜色编号（1-6）
     nickname: ai.nickname,
     emoji: ai.emoji || 'bot',
     isAI: true,
@@ -2515,6 +2517,8 @@ function handleStartGame(ws, playerId) {
     isHost: false  // AI玩家不是房主
   }));
   const allPlayers = [...realPlayers, ...aiPlayers];
+  room.settings.maxPlayers = 6;
+  room.settings.boardId = allPlayers.length > 4 ? 'classic6' : 'classic4';
 
   // 创建游戏会话
   const hostPlayer = realPlayers.find(p => p.isHost);
@@ -2567,6 +2571,8 @@ function handleStartGame(ws, playerId) {
   room.broadcast({
     type: 'gameStarted',
     gameSessionId,
+    boardId: room.settings.boardId,
+    playerCount: allPlayers.length,
     pieceCount: room.settings.pieceCount,
     skillMode: room.settings.skillMode || false,
     happyMode: room.settings.happyMode || false,
@@ -4437,7 +4443,7 @@ function handleChatMessage(ws, playerId, message) {
   const chatPayload = {
     type: 'chatMessage',
     playerId,
-    playerNumber: player.color, // 统一用color（1-4）
+    playerNumber: player.color, // 统一用color（1-6）
     playerName: sanitizeText(player.nickname),
     message: sanitizedMessage,
     timestamp: message?.data?.timestamp || message?.timestamp || Date.now()

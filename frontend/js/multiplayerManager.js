@@ -2264,7 +2264,7 @@ class MultiplayerManager {
             const playerCountEl = document.createElement('div');
             playerCountEl.className = 'public-room-player-count';
             const playerCount = (room.playerCount != null ? room.playerCount : 0);
-            const maxPlayers = (room.maxPlayers != null ? room.maxPlayers : 4);
+            const maxPlayers = (room.maxPlayers != null ? room.maxPlayers : 6);
             playerCountEl.textContent = `${playerCount}/${maxPlayers}`;
 
             item.appendChild(name);
@@ -3297,7 +3297,7 @@ class MultiplayerManager {
         const preview = document.getElementById('multiplayerEmojiPreview');
         if (preview && this.currentPlayer && this.currentPlayer.color) {
             // 清除所有可能的颜色类
-            preview.classList.remove('player-1-color', 'player-2-color', 'player-3-color', 'player-4-color');
+            preview.classList.remove('player-1-color', 'player-2-color', 'player-3-color', 'player-4-color', 'player-5-color', 'player-6-color');
             // 添加当前玩家的颜色类
             preview.classList.add(`player-${this.currentPlayer.color}-color`);
             // 确保基础类存在
@@ -4238,8 +4238,12 @@ class MultiplayerManager {
         console.log('[配置] 欢乐模式:', happyModeEnabled, '(isHost:', this.isHost, ')');
 
         // 设置正确的gameConfig，确保按钮显示正确
+        const boardId = gameData.boardId
+            || this.currentRoom?.settings?.boardId
+            || (allPlayers.length > 4 ? 'classic6' : 'classic4');
         const gameConfig = {
             mode: 'online_multiplayer',
+            boardId,
             playerCount: allPlayers.length,
             pieceCount: gameData.pieceCount || 4,
             skillMode: skillModeEnabled,
@@ -4341,11 +4345,19 @@ class MultiplayerManager {
         console.log('[配置] 重连时道具模式:', skillModeEnabled);
 
         // 设置正确的gameConfig，确保按钮显示正确
+        const happyModeEnabled = gameData.happyMode !== undefined
+            ? gameData.happyMode
+            : (this.currentRoom?.settings?.happyMode || false);
+        const boardId = gameData.boardId
+            || this.currentRoom?.settings?.boardId
+            || (allPlayers.length > 4 ? 'classic6' : 'classic4');
         const gameConfig = {
             mode: 'online_multiplayer',
+            boardId,
             playerCount: allPlayers.length,
             pieceCount: gameData.pieceCount || 4,
-            skillMode: skillModeEnabled // 添加道具模式配置
+            skillMode: skillModeEnabled,
+            happyMode: happyModeEnabled
         };
         sessionStorage.setItem('gameConfig', JSON.stringify(gameConfig));
 
@@ -4357,7 +4369,9 @@ class MultiplayerManager {
             gameSessionId: gameSessionId,
             isHost: this.isHost,
             isReconnecting: true, // 标记为重连
-            skillMode: skillModeEnabled, // 明确添加道具模式配置
+            boardId,
+            skillMode: skillModeEnabled,
+            happyMode: happyModeEnabled,
             wsClient: {
                 playerId: this.wsClient.playerId,
                 serverUrl: this.wsClient.serverUrl
