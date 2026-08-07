@@ -1,4 +1,16 @@
 /* 六人棋盘专用桌面布局。规则与坐标逻辑仍由 boardConfig / renderer 管理。 */
+
+/* P5/P6 动态补出的进度项必须与原四人进度面板使用相同的阵营色语义。 */
+body.six-player-mode .progress-avatar.player-5,
+body.six-player-mode .progress-fill.player-5 {
+  background-color: var(--player-5-color) !important;
+}
+
+body.six-player-mode .progress-avatar.player-6,
+body.six-player-mode .progress-fill.player-6 {
+  background-color: var(--player-6-color) !important;
+}
+
 @media (min-width: 769px) {
   body.six-player-mode .board-container {
     overflow: visible;
