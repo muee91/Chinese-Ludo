@@ -1,3 +1,4 @@
+import '../css/sixPlayerBoard.css';
 import { getCurrentBoardDefinition } from './boards/boardConfig.js';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -85,6 +86,7 @@ function ensureSixPlayerPanels() {
     const desktop = document.querySelector('.players-info');
     const top = document.querySelector('.players-top');
     const bottom = document.querySelector('.players-bottom');
+    const boardContainer = document.querySelector('.board-container');
 
     PLAYERS.forEach(player => ensurePlayerCard(desktop, player, false));
     [4, 1, 6].forEach(player => ensurePlayerCard(top, player, true));
@@ -95,6 +97,10 @@ function ensureSixPlayerPanels() {
             const match = el.className.match(/player-(\d+)-info/);
             if (match) el.classList.add(`six-seat-${match[1]}`);
         });
+        // 六人桌面玩家卡使用棋盘自身坐标系，避免原四人页面百分比定位把 P2/P5/P6 推出视口。
+        if (boardContainer && desktop.parentElement !== boardContainer) {
+            boardContainer.appendChild(desktop);
+        }
     }
     ensureProgressItems();
     ensureDebugPlayers();
