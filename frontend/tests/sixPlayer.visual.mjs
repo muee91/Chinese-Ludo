@@ -167,21 +167,29 @@ const maliciousMetrics = await malicious.page.evaluate(() => ({
 await malicious.context.close();
 
 // 联机昵称解析：真实玩家 id 通常是字符串，阵营编号来自 color/playerNumber。
-// gameConfig 中故意不提供 P5/P6 名字，使渲染器必须从 multiplayerGameData 正确解析。
+// 使用真正的 online_multiplayer 模式，避免本地模式初始化按设计清除 multiplayerGameData。
 const fallbackConfig = JSON.parse(JSON.stringify(sixPlayerConfig));
+fallbackConfig.mode = 'online_multiplayer';
 fallbackConfig.players.forEach(player => {
   if (player.id === 5 || player.id === 6) delete player.name;
 });
 const onlinePayload = {
+  mode: 'online_multiplayer',
   boardId: 'classic6',
-  playerCount: 6,
+  playerCount: 2,
+  pieceCount: 4,
+  skillMode: false,
+  happyMode: false,
+  gameSessionId: 'game_visual_names',
+  currentPlayer: { id: 'player_remote_5', color: 5 },
   players: [
-    { id: 'player_remote_5', color: 5, nickname: '联机玩家5' },
-    { id: 'player_remote_6', playerNumber: 6, nickname: '联机玩家6' }
+    { id: 'player_remote_5', color: 5, nickname: '联机玩家5', isAI: false },
+    { id: 'player_remote_6', playerNumber: 6, color: 6, nickname: '联机玩家6', isAI: false }
   ]
 };
 const online = await openSixPlayerPage({ width: 1000, height: 800 }, fallbackConfig, onlinePayload);
 const onlineNameMetrics = await online.page.evaluate(() => ({
+  activePlayers: window.activePlayerManager.getActivePlayers(),
   desktop5: document.querySelector('.board-container > .players-info .player-5-info .player-name')?.textContent?.trim() || '',
   desktop6: document.querySelector('.board-container > .players-info .player-6-info .player-name')?.textContent?.trim() || '',
   mobile5: document.querySelector('.players-bottom .player-5-info .player-name')?.textContent?.trim() || '',
@@ -227,6 +235,7 @@ if (sparseP5Metrics.boardId !== 'classic6' || !sparseP5Metrics.sixLayerExists ||
 if (JSON.stringify(sparseP5Metrics.activePlayers) !== JSON.stringify([1,5])) failures.push(`sparse active players=${JSON.stringify(sparseP5Metrics.activePlayers)}`);
 if (maliciousMetrics.player5Name !== maliciousName) failures.push(`unsafe nickname text=${maliciousMetrics.player5Name}`);
 if (maliciousMetrics.injectedElementExists) failures.push('nickname HTML was injected into DOM');
+if (JSON.stringify(onlineNameMetrics.activePlayers) !== JSON.stringify([5,6])) failures.push(`online active players=${JSON.stringify(onlineNameMetrics.activePlayers)}`);
 if (onlineNameMetrics.desktop5 !== '联机玩家5' || onlineNameMetrics.desktop6 !== '联机玩家6') {
   failures.push(`online desktop names=${onlineNameMetrics.desktop5}/${onlineNameMetrics.desktop6}`);
 }
