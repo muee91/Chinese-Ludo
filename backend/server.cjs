@@ -3687,7 +3687,7 @@ function handleRoomPanelMessage(ws, playerId, message) {
 // 配置棋子数量（需要房主权限）
 const handleConfigurePieceCount = withRoomValidation((ws, playerId, message, room) => {
   const { pieceCount } = message.data;
-  if (![1, 2, 3, 4, 5, 6].includes(pieceCount)) throw new Error('无效的棋子数量');
+  if (![1, 2, 3, 4].includes(pieceCount)) throw new Error('无效的棋子数量');
 
   room.settings.pieceCount = pieceCount;
   // 广播配置结果
