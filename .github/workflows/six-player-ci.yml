@@ -21,10 +21,10 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci
+        run: npm ci --workspaces=false
       - name: Install Rollup Linux native binary
         working-directory: frontend
-        run: npm install --no-save @rollup/rollup-linux-x64-gnu
+        run: npm install --no-save --workspaces=false @rollup/rollup-linux-x64-gnu
       - name: Check integrated JavaScript syntax
         run: |
           node --check frontend/js/boards/boardConfig.js
