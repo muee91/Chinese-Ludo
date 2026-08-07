@@ -106,6 +106,13 @@ function ringCellAngle(ring, index) {
     return Math.atan2(next.y - previous.y, next.x - previous.x) * 180 / Math.PI + 90;
 }
 
+function pointAlongLine(start, end, fraction) {
+    return {
+        x: start.x + (end.x - start.x) * fraction,
+        y: start.y + (end.y - start.y) * fraction
+    };
+}
+
 export function prepareBoardForCurrentMode() {
     const board = getCurrentBoardDefinition();
     if (board.id !== 'classic6') return board;
@@ -115,7 +122,10 @@ export function prepareBoardForCurrentMode() {
 
     const svg = document.getElementById('board-svg');
     if (!svg || svg.dataset.boardId === 'classic6') return board;
-    svg.setAttribute('viewBox', '-115 -115 230 230');
+
+    const visual = board.visual;
+    const viewBoxRadius = visual.viewBoxRadius;
+    svg.setAttribute('viewBox', `${-viewBoxRadius} ${-viewBoxRadius} ${viewBoxRadius * 2} ${viewBoxRadius * 2}`);
 
     const defs = svg.querySelector('defs');
     [...svg.children].forEach(child => { if (child !== defs) child.remove(); });
@@ -130,10 +140,8 @@ export function prepareBoardForCurrentMode() {
         const angle = ringCellAngle(ring, absoluteIndex);
         const cell = make('use', {
             href: '#vr2',
-            x: point.x,
-            y: point.y,
             class: `player-${color} six-ring-cell`,
-            transform: `rotate(${angle} ${point.x} ${point.y})`,
+            transform: `translate(${point.x} ${point.y}) rotate(${angle}) scale(${visual.ringCellScale})`,
             'data-ring-pos': absoluteIndex,
             'data-cpos': absoluteIndex
         });
@@ -150,52 +158,54 @@ export function prepareBoardForCurrentMode() {
     board.players.forEach(player => {
         const angle = board.playerAngles[player];
         const rotatedBaseCenter = rotate(baseCenter, angle);
-        // #start 自身以(0,0)为中心，使用 translate+rotate 避免 x/y 与 transform 双重旋转。
+
         layer.appendChild(make('use', {
             href: '#start',
             id: `player${player}-start`,
             class: `player-${player}`,
-            transform: `translate(${rotatedBaseCenter.x} ${rotatedBaseCenter.y}) rotate(${angle})`
+            transform: `translate(${rotatedBaseCenter.x} ${rotatedBaseCenter.y}) rotate(${angle}) scale(${visual.baseScale})`
         }));
 
-        // 独立起飞跑道：对应逻辑位置0，不参与公共环道碰撞。
         const launch = rotate(baseTrack[0], angle);
         layer.appendChild(make('use', {
-            href: '#vr2', x: launch.x, y: launch.y,
+            href: '#vr2',
             class: `player-${player} six-launch-cell`,
-            transform: `rotate(${angle} ${launch.x} ${launch.y})`,
-            'data-cpos': 0, 'data-player': player
+            transform: `translate(${launch.x} ${launch.y}) rotate(${angle}) scale(${visual.laneCellScale})`,
+            'data-cpos': 0,
+            'data-player': player
         }));
 
         for (let pos = board.finishStart; pos <= board.finishEnd; pos++) {
             const point = rotate(baseTrack[pos], angle);
             layer.appendChild(make('use', {
-                href: '#vr2', x: point.x, y: point.y,
+                href: '#vr2',
                 class: `player-${player} six-finish-cell`,
-                transform: `rotate(${angle} ${point.x} ${point.y})`,
-                'data-cpos': pos, 'data-player': player
+                transform: `translate(${point.x} ${point.y}) rotate(${angle}) scale(${visual.laneCellScale})`,
+                'data-cpos': pos,
+                'data-player': player
             }));
         }
 
-        // 六个终点三角继续使用原版 #end，围绕中心旋转。
         layer.appendChild(make('use', {
             href: '#end',
             class: `player-${player}`,
-            transform: `rotate(${angle} 0 0) scale(.58)`
+            transform: `rotate(${angle} 0 0) scale(${visual.endScale})`,
+            'data-cpos': board.finishEnd
         }));
 
         const flightStart = rotate(baseTrack[board.flightPoint], angle);
         const flightEnd = rotate(baseTrack[board.flightTarget], angle);
         const arrowAngle = Math.atan2(flightEnd.y - flightStart.y, flightEnd.x - flightStart.x) * 180 / Math.PI;
-        layer.appendChild(make('use', {
-            href: '#arrow',
-            x: flightStart.x - 5,
-            y: flightStart.y - 5,
-            class: `player-${player} six-flight-arrow`,
-            transform: `rotate(${arrowAngle} ${flightStart.x} ${flightStart.y})`
-        }));
 
-        // 保留原版飞机棋子图元；setupChessElements 会把它们绑定到原 GameState。
+        visual.flightArrowFractions.forEach((fraction, index) => {
+            const marker = pointAlongLine(flightStart, flightEnd, fraction);
+            layer.appendChild(make('use', {
+                href: '#arrow',
+                class: `player-${player} six-flight-arrow six-flight-arrow-${index + 1}`,
+                transform: `translate(${marker.x} ${marker.y}) rotate(${arrowAngle}) translate(-7 -7)`
+            }));
+        });
+
         for (let index = 0; index < 4; index++) {
             layer.appendChild(make('use', {
                 href: '#chess',
