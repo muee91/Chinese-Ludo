@@ -52,14 +52,35 @@ const metrics = await desktop.page.evaluate(() => {
   const desktopCards = [...document.querySelectorAll('.board-container > .players-info > .player-info')];
   const desktopCardRects = desktopCards.map(card => {
     const rect = card.getBoundingClientRect();
-    const player = [...card.classList].find(name => /^player-\d+-info$/.test(name)) || '';
-    return { player, left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height };
+    const playerClass = [...card.classList].find(name => /^player-\d+-info$/.test(name)) || '';
+    const player = Number(playerClass.match(/player-(\d+)-info/)?.[1] || 0);
+    return {
+      player,
+      name: card.querySelector('.player-name')?.textContent?.trim() || '',
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      width: rect.width,
+      height: rect.height
+    };
   });
   const visibleDesktopCards = desktopCardRects.filter(rect =>
     rect.width > 0 && rect.height > 0 &&
     rect.left >= 0 && rect.top >= 0 &&
     rect.right <= window.innerWidth && rect.bottom <= window.innerHeight
   );
+  const cardByPlayer = Object.fromEntries(desktopCardRects.map(rect => [rect.player, rect]));
+
+  const rectOf = element => {
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+  };
+  const p1Base = rectOf(document.getElementById('player1-start'));
+  const p4Base = rectOf(document.getElementById('player4-start'));
+  const topSeatBaseGap = p1Base && cardByPlayer[1] ? p1Base.top - cardByPlayer[1].bottom : -Infinity;
+  const bottomSeatBaseGap = p4Base && cardByPlayer[4] ? cardByPlayer[4].top - p4Base.bottom : -Infinity;
 
   const chess = [...document.querySelectorAll('#board-svg use[href="#chess"]')];
   const p4Chess = chess.filter(el => el.classList.contains('player-4')).map(el => ({
@@ -94,6 +115,9 @@ const metrics = await desktop.page.evaluate(() => {
     desktopCardCount: desktopCards.length,
     visibleDesktopCardCount: visibleDesktopCards.length,
     desktopCardRects,
+    topSeatBaseGap,
+    bottomSeatBaseGap,
+    progressAvatarCount: document.querySelectorAll('.progress-content .progress-avatar').length,
     maxBaseHoleError: Math.max(...baseErrors),
     svgRect: svg ? svg.getBoundingClientRect().toJSON() : null
   };
@@ -107,6 +131,8 @@ const mobile = await openSixPlayerPage({ width: 390, height: 844 });
 const mobileMetrics = await mobile.page.evaluate(() => ({
   topCards: document.querySelectorAll('.players-top > .player-info').length,
   bottomCards: document.querySelectorAll('.players-bottom > .player-info').length,
+  player5Name: document.querySelector('.players-bottom .player-5-info .player-name')?.textContent?.trim() || '',
+  player6Name: document.querySelector('.players-top .player-6-info .player-name')?.textContent?.trim() || '',
   boardWidth: document.getElementById('board-svg')?.getBoundingClientRect().width ?? 0,
   viewportWidth: window.innerWidth
 }));
@@ -117,6 +143,7 @@ await browser.close();
 console.log(JSON.stringify({ metrics, mobileMetrics }, null, 2));
 
 const failures = [];
+const playerNames = Object.fromEntries(metrics.desktopCardRects.map(item => [item.player, item.name]));
 if (metrics.boardId !== 'classic6') failures.push(`boardId=${metrics.boardId}`);
 if (metrics.ringCount !== 78) failures.push(`ringCount=${metrics.ringCount}`);
 if (metrics.finishCount !== 36) failures.push(`finishCount=${metrics.finishCount}`);
@@ -125,8 +152,13 @@ if (metrics.startCount !== 6) failures.push(`startCount=${metrics.startCount}`);
 if (metrics.chessCount !== 24) failures.push(`chessCount=${metrics.chessCount}`);
 if (metrics.desktopCardCount !== 6) failures.push(`desktopCardCount=${metrics.desktopCardCount}`);
 if (metrics.visibleDesktopCardCount !== 6) failures.push(`visibleDesktopCardCount=${metrics.visibleDesktopCardCount}`);
+if (metrics.topSeatBaseGap < 8) failures.push(`P1 base gap=${metrics.topSeatBaseGap.toFixed(2)}`);
+if (metrics.bottomSeatBaseGap < 8) failures.push(`P4 base gap=${metrics.bottomSeatBaseGap.toFixed(2)}`);
+if (playerNames[5] !== '玩家5' || playerNames[6] !== '玩家6') failures.push(`desktop P5/P6 names=${playerNames[5]}/${playerNames[6]}`);
+if (metrics.progressAvatarCount !== 6) failures.push(`progressAvatarCount=${metrics.progressAvatarCount}`);
 if (metrics.maxBaseHoleError > 0.9) failures.push(`base-hole alignment error=${metrics.maxBaseHoleError.toFixed(2)}`);
 if (mobileMetrics.topCards !== 3 || mobileMetrics.bottomCards !== 3) failures.push(`mobile cards=${mobileMetrics.topCards}+${mobileMetrics.bottomCards}`);
+if (mobileMetrics.player5Name !== '玩家5' || mobileMetrics.player6Name !== '玩家6') failures.push(`mobile P5/P6 names=${mobileMetrics.player5Name}/${mobileMetrics.player6Name}`);
 if (mobileMetrics.boardWidth > mobileMetrics.viewportWidth + 1) failures.push(`mobile board overflow=${mobileMetrics.boardWidth}/${mobileMetrics.viewportWidth}`);
 
 if (failures.length) {
