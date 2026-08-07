@@ -31,7 +31,8 @@ function findPlayerInPayload(payload, player) {
     ];
     for (const players of candidates) {
         if (!Array.isArray(players)) continue;
-        const match = players.find(item => Number(item?.id ?? item?.color ?? item?.playerNumber) === numericPlayer);
+        const match = players.find(item => [item?.color, item?.playerNumber, item?.id]
+            .some(value => Number(value) === numericPlayer));
         if (match) return match;
     }
     return null;
@@ -83,12 +84,15 @@ function ensurePlayerCard(container, player, mobile = false) {
                 <div class="player-avatar player-${player}-avatar">
                     <div class="player-emoji" id="player-${player}-emoji${mobile ? '-mobile' : ''}"></div>
                 </div>
-                <div class="player-name">${configuredName}</div>
+                <div class="player-name"></div>
             </div>`;
+        card.querySelector('.player-name').textContent = configuredName;
         container.appendChild(card);
     } else {
         const nameElement = card.querySelector('.player-name');
-        if (nameElement && /^Player\s+\d+$/i.test(nameElement.textContent?.trim() || '')) {
+        const currentName = nameElement?.textContent?.trim() || '';
+        const isGenericName = /^Player\s+\d+$/i.test(currentName) || /^玩家\d+$/.test(currentName);
+        if (nameElement && isGenericName) {
             nameElement.textContent = configuredName;
         }
     }
