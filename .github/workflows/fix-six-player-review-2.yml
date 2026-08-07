@@ -1,0 +1,62 @@
+name: Apply Six Player Review Fixes 2
+
+on:
+  push:
+    branches:
+      - agent/add-six-player-foundation
+    paths:
+      - .github/workflows/fix-six-player-review-2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply targeted review fixes and remove this workflow
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # Settlement defeat badges must follow active players, preserving classic4 output.
+          settlement = Path('frontend/js/settlementModal.js')
+          text = settlement.read_text(encoding='utf-8')
+          old_loop = 'for (let opponent = 1; opponent <= 6; opponent++) {'
+          count = text.count(old_loop)
+          if count != 2:
+              raise SystemExit(f'expected 2 settlement opponent loops, found {count}')
+          text = text.replace(old_loop, 'for (const opponent of activePlayerManager.getActivePlayers()) {')
+          settlement.write_text(text, encoding='utf-8')
+
+          # Preserve classic4 AI scoring while normalizing the longer classic6 outer ring to the same 10..60 range.
+          bot = Path('frontend/js/botController.js')
+          text = bot.read_text(encoding='utf-8')
+          old = '''                                } else if (pos >= 0) {\n                                    progressScore = 10 + pos;\n                                }'''
+          new = '''                                } else if (pos >= 0) {\n                                    const outerEnd = gameState.getOuterTrackEnd();\n                                    progressScore = outerEnd > 0 ? 10 + (pos / outerEnd) * 50 : 10;\n                                }'''
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'expected one AI outer progress score block, found {count}')
+          bot.write_text(text.replace(old, new), encoding='utf-8')
+
+          # Default bot emoji setup should only touch players on the current board profile.
+          game_main = Path('frontend/js/gameMain.js')
+          text = game_main.read_text(encoding='utf-8')
+          old = "const botsToSetup = activeBotNumbers || [1, 2, 3, 4, 5, 6].filter(i => i !== humanPlayerNumber);"
+          new = "const botsToSetup = activeBotNumbers || getCurrentBoardDefinition().players.filter(i => i !== humanPlayerNumber);"
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'expected one gameMain bot fallback, found {count}')
+          game_main.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+          rm .github/workflows/fix-six-player-review-2.yml
+      - name: Commit review fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/js/settlementModal.js frontend/js/botController.js frontend/js/gameMain.js .github/workflows/fix-six-player-review-2.yml
+          git commit -m "fix: preserve classic4 UI and normalize classic6 AI progress"
+          git push origin HEAD:agent/add-six-player-foundation
