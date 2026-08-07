@@ -107,7 +107,7 @@ body.six-player-mode .progress-item[data-player="6"] .progress-player-name {
   }
 
   body.six-player-mode #board-svg {
-    width: min(640px, calc(100% - 220px));
+    width: min(700px, calc(100% - 140px));
     height: auto;
     max-width: none;
     aspect-ratio: 1;
@@ -136,14 +136,14 @@ body.six-player-mode .progress-item[data-player="6"] .progress-player-name {
     bottom: auto !important;
     left: auto !important;
     width: 96px;
-    min-height: 72px;
+    min-height: 0;
     box-sizing: border-box;
     justify-content: center;
     margin: 0 !important;
-    padding: 7px 6px;
-    border: 1px solid var(--six-seat-border);
+    padding: 0;
+    border: 1px solid transparent;
     border-radius: 12px;
-    background: rgba(255, 253, 250, 0.84);
+    background: transparent;
     pointer-events: auto;
     transition: box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
   }
@@ -208,10 +208,14 @@ body.six-player-mode .progress-item[data-player="6"] .progress-player-name {
   }
 
   body.six-player-mode .board-container > .players-info > .player-info.six-seat-active {
-    border-color: var(--seat-color);
-    background: rgba(255, 253, 250, 0.98);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--seat-color) 72%, transparent),
-      0 4px 12px rgba(61, 53, 45, 0.14);
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  body.six-player-mode .board-container > .players-info > .player-info.six-seat-active .player-avatar {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--seat-color) 72%, transparent),
+      0 3px 10px rgba(61, 53, 45, 0.18);
   }
 
   /* 六人进度面板要能容纳名称、百分比和六条进度。 */
@@ -222,6 +226,16 @@ body.six-player-mode .progress-item[data-player="6"] .progress-player-name {
   body.six-player-mode .progress-content {
     gap: 7px;
     padding: 10px 12px 12px;
+  }
+}
+
+/* 宽桌面不要把游戏区锁死在 840px；让棋盘舞台在控制区左侧居中，
+ * 避免右边留下大块空白，同时保留舞台内部的席位几何。 */
+@media (min-width: 1261px) {
+  body.six-player-mode .game-container {
+    flex: 1 1 auto;
+    width: auto;
+    max-width: none;
   }
 }
 
@@ -261,7 +275,7 @@ body.six-player-mode .progress-item[data-player="6"] .progress-player-name {
     flex-direction: column;
     justify-content: center;
     gap: 2px;
-    padding: 4px 2px;
+    padding: 0 2px;
     border: 1px solid transparent;
     border-radius: 10px;
     box-sizing: border-box;
@@ -293,9 +307,15 @@ body.six-player-mode .progress-item[data-player="6"] .progress-player-name {
 
   body.six-player-mode .players-top .player-info.six-seat-active,
   body.six-player-mode .players-bottom .player-info.six-seat-active {
-    border-color: var(--seat-color, var(--border-medium));
-    background: rgba(255, 253, 250, 0.82);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--seat-color, var(--border-medium)) 72%, transparent);
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  body.six-player-mode .players-top .player-info.six-seat-active .player-avatar,
+  body.six-player-mode .players-bottom .player-info.six-seat-active .player-avatar {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--seat-color, var(--border-medium)) 72%, transparent),
+      0 3px 9px rgba(61, 53, 45, 0.18);
   }
 
   body.six-player-mode .board-container {
