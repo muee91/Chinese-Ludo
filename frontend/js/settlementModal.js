@@ -380,7 +380,9 @@ class SettlementModal {
             1: getComputedStyle(document.documentElement).getPropertyValue('--player-1-color').trim() || '#E74C3C',
             2: getComputedStyle(document.documentElement).getPropertyValue('--player-2-color').trim() || '#3498DB',
             3: getComputedStyle(document.documentElement).getPropertyValue('--player-3-color').trim() || '#2ECC71',
-            4: getComputedStyle(document.documentElement).getPropertyValue('--player-4-color').trim() || '#F1C40F'
+            4: getComputedStyle(document.documentElement).getPropertyValue('--player-4-color').trim() || '#F1C40F',
+            5: getComputedStyle(document.documentElement).getPropertyValue('--player-5-color').trim() || '#c7b9df',
+            6: getComputedStyle(document.documentElement).getPropertyValue('--player-6-color').trim() || '#d9cf98'
         };
 
         // 清空画布

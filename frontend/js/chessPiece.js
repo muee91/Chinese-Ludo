@@ -230,9 +230,11 @@ class ChessPiece {
         // 终点通道（51-56）每个玩家各自独立，需要用 player class 过滤
         [fromAbsPos, targetAbsPos].forEach(absPos => {
             if (absPos === undefined || absPos === null) return;
-            const sel = absPos >= 51
-                ? `[data-cpos="${absPos}"].player-${player}`
-                : `[data-cpos="${absPos}"]`;
+            const isEncodedFinish = absPos >= 1000;
+            const relativeFinishPosition = isEncodedFinish ? absPos % 100 : absPos;
+            const sel = isEncodedFinish || relativeFinishPosition >= this.gameState.getFinishStart()
+                ? `[data-cpos="${relativeFinishPosition}"].player-${player}`
+                : `[data-cpos="${relativeFinishPosition}"]`;
             const els = svg.querySelectorAll(sel);
             els.forEach(el => el.classList.add('teleport-grid-highlight'));
         });

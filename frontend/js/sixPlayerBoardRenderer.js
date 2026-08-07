@@ -153,6 +153,7 @@ export function prepareBoardForCurrentMode() {
         // #start 自身以(0,0)为中心，使用 translate+rotate 避免 x/y 与 transform 双重旋转。
         layer.appendChild(make('use', {
             href: '#start',
+            id: `player${player}-start`,
             class: `player-${player}`,
             transform: `translate(${rotatedBaseCenter.x} ${rotatedBaseCenter.y}) rotate(${angle})`
         }));

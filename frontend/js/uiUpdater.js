@@ -253,7 +253,7 @@ class UIUpdater {
     // 更新起始区域发光效果
     updateStartAreaGlow() {
         // 移除所有起始区域的发光效果
-        for (let i = 1; i <= 4; i++) {
+        for (const i of gameState.getBoardDefinition().players) {
             const startArea = document.getElementById(`player${i}-start`);
             if (startArea) {
                 startArea.classList.remove('start-area-active');
@@ -265,7 +265,7 @@ class UIUpdater {
         const currentPlayer = gameState.getCurrentPlayer();
         const diceValue = gameState.getDiceValue();
 
-        if (gamePhase === 'selecting' && diceValue === 6) {
+        if (gamePhase === 'selecting' && diceValue % 2 === 0) {
             const startArea = document.getElementById(`player${currentPlayer}-start`);
             if (startArea) {
                 startArea.classList.add('start-area-active');
@@ -385,13 +385,13 @@ class UIUpdater {
 
         // 棋子在轨道上，检查是否可以移动
         // 如果棋子在终点通道（位置51-56），支持反弹机制，任何点数都可以移动
-        if (chess.position >= 51 && chess.position < 56) {
+        if (chess.position >= gameState.getFinishStart() && chess.position < gameState.getFinishEnd()) {
             return true;
         }
 
         // 如果棋子在普通轨道（0-50），可以移动并支持反弹
         // 注意：不再限制点数+位置不能超过56，因为可以反弹
-        if (chess.position >= 0 && chess.position <= 50) {
+        if (chess.position >= 0 && chess.position <= gameState.getOuterTrackEnd()) {
             return true;
         }
 
