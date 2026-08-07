@@ -73,7 +73,8 @@ const classic6Visual = Object.freeze({
     baseRadius: 148,
     launchRadiusScale: 1.13,
     endScale: 0.52,
-    finishScales: Object.freeze([0.80, 0.66, 0.52, 0.38, 0.24, 0.10]),
+    // 第3格使用 7/13 半径，精确落在 26→50 飞行线与对家终点航道的交点上。
+    finishScales: Object.freeze([0.82, 0.68, 7 / 13, 0.40, 0.26, 0.12]),
     flightArrowFractions: Object.freeze([0.30, 0.58])
 });
 
