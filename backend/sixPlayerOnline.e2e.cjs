@@ -72,7 +72,9 @@ async function getJson(path) {
 }
 
 (async () => {
+  const allClients = [];
   const clients = Array.from({ length: 7 }, (_, index) => new TestClient(index + 1));
+  allClients.push(...clients);
   try {
     await Promise.all(clients.map(client => client.connect()));
 
@@ -84,6 +86,7 @@ async function getJson(path) {
     assert.equal(created.room.players.length, 1);
     assert.equal(created.room.players[0].color, 1);
     assert.equal(created.room.settings.maxPlayers, 6);
+    assert.equal(created.room.settings.boardId, 'classic4', '房间容量6不应让单人等待房自动变成classic6');
 
     for (let index = 1; index < 6; index++) {
       const client = clients[index];
@@ -96,6 +99,9 @@ async function getJson(path) {
       const own = joined.room.players.find(player => player.id === client.playerId);
       assert.ok(own, `player ${index + 1} missing from joined room`);
       assert.equal(own.color, index + 1, `player ${index + 1} color`);
+      if (index < 4) {
+        assert.equal(joined.room.settings.boardId, 'classic4', '4人以内且仅P1-P4时应保持classic4');
+      }
     }
 
     const sixthRoom = await getJson('/api/rooms');
@@ -104,6 +110,7 @@ async function getJson(path) {
     assert.equal(waitingRoom.players.length, 6);
     assert.deepEqual(waitingRoom.players.map(player => player.color).sort((a, b) => a - b), [1,2,3,4,5,6]);
     assert.equal(waitingRoom.settings.maxPlayers, 6);
+    assert.equal(waitingRoom.settings.boardId, 'classic6');
 
     // 第7名真实玩家必须被拒绝，不能占用第7个席位。
     const extra = clients[6];
@@ -171,17 +178,68 @@ async function getJson(path) {
       assert.deepEqual(spectator.gameData.playerChess[player].map(piece => piece.position), [-1,-1,-1,-1]);
     }
 
+    // 边界：只有2个人，但第二人选择P5时必须使用classic6。
+    const sparseHost = new TestClient(8);
+    const sparseGuest = new TestClient(9);
+    allClients.push(sparseHost, sparseGuest);
+    await Promise.all([sparseHost.connect(), sparseGuest.connect()]);
+
+    sparseHost.send({ type: 'createRoom', data: { nickname: sparseHost.nickname, emoji: 'smile' } });
+    const sparseCreated = await sparseHost.waitFor(message => message.type === 'roomCreated');
+    const sparseRoomCode = sparseCreated.room.code;
+    assert.equal(sparseCreated.room.settings.maxPlayers, 6);
+    assert.equal(sparseCreated.room.settings.boardId, 'classic4');
+
+    sparseGuest.send({ type: 'join_room', data: { roomCode: sparseRoomCode, nickname: sparseGuest.nickname, emoji: 'smile' } });
+    const sparseJoined = await sparseGuest.waitFor(message => message.type === 'roomJoined');
+    assert.equal(sparseJoined.room.players.length, 2);
+    assert.deepEqual(sparseJoined.room.players.map(player => player.color).sort((a,b) => a-b), [1,2]);
+    assert.equal(sparseJoined.room.settings.boardId, 'classic4', 'P1/P2两人局应保持classic4');
+
+    // 非法阵营不能绕过UI写入服务端。
+    sparseGuest.send({ type: 'select_color', data: { colorIndex: 7 } });
+    const invalidColor = await sparseGuest.waitFor(message => message.type === 'error');
+    assert.equal(invalidColor.message, '无效的颜色');
+
+    sparseGuest.send({ type: 'select_color', data: { colorIndex: 5 } });
+    const colorChanged = await sparseGuest.waitFor(message =>
+      message.type === 'playerUpdated' && message.player?.id === sparseGuest.playerId && message.player?.color === 5
+    );
+    assert.equal(colorChanged.room.settings.boardId, 'classic6', 'P5加入后房间摘要应立即切classic6');
+
+    const sparseRooms = await getJson('/api/rooms');
+    const sparseWaitingRoom = sparseRooms.rooms.find(room => room.code === sparseRoomCode);
+    assert.ok(sparseWaitingRoom, 'sparse P1/P5 room missing');
+    assert.equal(sparseWaitingRoom.players.length, 2);
+    assert.deepEqual(sparseWaitingRoom.players.map(player => player.color).sort((a,b) => a-b), [1,5]);
+    assert.equal(sparseWaitingRoom.settings.boardId, 'classic6');
+
+    sparseGuest.send({ type: 'toggle_ready', data: { isReady: true } });
+    await sparseHost.waitFor(message =>
+      message.type === 'playerReadyStatusChanged' && message.playerId === sparseGuest.playerId && message.isReady === true
+    );
+    sparseHost.send({ type: 'start_game' });
+    const sparseStarted = await sparseHost.waitFor(message => message.type === 'gameStarted', 7000);
+    assert.equal(sparseStarted.playerCount, 2);
+    assert.equal(sparseStarted.boardId, 'classic6');
+    assert.equal(sparseStarted.room.settings.boardId, 'classic6');
+    const sparsePeerStarted = await sparseGuest.waitFor(message => message.type === 'gameStarted', 7000);
+    assert.equal(sparsePeerStarted.boardId, 'classic6');
+
     console.log(JSON.stringify({
       roomCode,
       gameSessionId: started.gameSessionId,
       boardId: started.boardId,
       players: playingRoom.players.map(player => ({ id: player.id, color: player.color })),
       spectatorBoardId: spectator.gameData.boardId,
-      serverPlayerChessKeys: Object.keys(spectator.gameData.playerChess)
+      serverPlayerChessKeys: Object.keys(spectator.gameData.playerChess),
+      sparseRoomCode,
+      sparsePlayers: sparseWaitingRoom.players.map(player => ({ id: player.id, color: player.color })),
+      sparseBoardId: sparseStarted.boardId
     }, null, 2));
     console.log('six-player online room e2e passed');
   } finally {
-    for (const client of clients) client.close();
+    for (const client of allClients) client.close();
   }
 })().catch(error => {
   console.error(error);
