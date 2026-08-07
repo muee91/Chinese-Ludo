@@ -74,6 +74,8 @@ class GameState {
             ]
         };
 
+        // 六人棋盘继续使用原 GameState；仅根据棋盘定义切换几何坐标。
+        this.applyBoardStartPositions();
         // 初始化玩家棋子状态（默认4个棋子）
         this.initializePlayerChess(4);
 
@@ -133,6 +135,23 @@ class GameState {
             3: { remoteDice: 0, teleport: 0, polyhedralDice: 0, mysteryBox: 0 },
             4: { remoteDice: 0, teleport: 0, polyhedralDice: 0, mysteryBox: 0 }
         };
+        this.ensureSupportedPlayerState();
+    }
+
+    applyBoardStartPositions() {
+        const board = this.getBoardDefinition();
+        if (board.id === 'classic6') {
+            const slots = board.getBaseSlotPositions();
+            for (const player of SUPPORTED_PLAYERS) {
+                this.startPositions[player] = slots.map(point => ({ ...point }));
+            }
+            return;
+        }
+        // classic4 保持原坐标；5/6 仅作为未激活的兼容状态槽。
+        const fallback = this.startPositions[3] || this.startPositions[1] || [];
+        for (const player of [5, 6]) {
+            this.startPositions[player] = fallback.map(point => ({ ...point }));
+        }
     }
 
     ensureSupportedPlayerState() {
@@ -153,6 +172,7 @@ class GameState {
     getOuterTrackEnd() { return this.getBoardDefinition().outerEnd; }
     getFinishStart() { return this.getBoardDefinition().finishStart; }
     getFinishEnd() { return this.getBoardDefinition().finishEnd; }
+    getFlightCrossPosition() { return this.getBoardDefinition().getFlightCrossPosition(); }
     getPlayerRotation(player) { return this.getBoardDefinition().playerAngles[Number(player)] ?? 0; }
 
     // 初始化玩家棋子状态
@@ -328,6 +348,7 @@ class GameState {
         this.maxPlayers = this.boardDefinition.playerCount;
         this.mainTrack = this.generateMainTrack();
         this.trackRotations = this.calculateTrackRotations(this.mainTrack);
+        this.applyBoardStartPositions();
         // 清除思考时间计时器
         this.clearThinkingTimer();
 
@@ -369,7 +390,7 @@ class GameState {
 
         // 重置击败次数统计
         for (const player of SUPPORTED_PLAYERS) {
-            for (let opponent = 1; opponent <= 4; opponent++) {
+            for (let opponent = 1; opponent <= 6; opponent++) {
                 if (player !== opponent) {
                     this.defeatCounts[player][opponent] = 0;
                 }
@@ -408,6 +429,7 @@ class GameState {
             3: { remoteDice: 0, teleport: 0, polyhedralDice: 0, mysteryBox: 0 },
             4: { remoteDice: 0, teleport: 0, polyhedralDice: 0, mysteryBox: 0 }
         };
+        this.ensureSupportedPlayerState();
     }
 
     // 记录首位完成者
@@ -486,7 +508,7 @@ class GameState {
 
             // 如果棋子在起始区域，只有摇到6才能出发
             if (chess.position === -1) {
-                if (diceValue === 6) {
+                if (diceValue % 2 === 0) {
                     movableChess.push(i);
                 }
             }

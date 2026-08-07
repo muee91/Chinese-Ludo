@@ -40,7 +40,11 @@ class DefeatCountDisplay {
 
     // 更新击败次数显示
     updateDefeatCount(attackerPlayer, defeatedPlayer, count) {
-        const element = this.defeatCountElements[attackerPlayer]?.[defeatedPlayer];
+        let element = this.defeatCountElements[attackerPlayer]?.[defeatedPlayer];
+        if (!element) {
+            this.initializeElements();
+            element = this.defeatCountElements[attackerPlayer]?.[defeatedPlayer];
+        }
         if (element) {
             // 格式化显示，默认显示为单个数字，不使用三位数格式
             const formattedCount = count.toString();

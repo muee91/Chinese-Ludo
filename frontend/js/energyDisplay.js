@@ -40,14 +40,14 @@ class EnergyDisplay {
         }
 
         // 移动端：根据玩家位置添加
-        if (player === 1 || player === 4) {
+        if (player === 1 || player === 4 || player === 6) {
             const mobilePlayerInfo = document.querySelector(`.players-top .player-${player}-info`);
             if (mobilePlayerInfo) {
                 const energyBarHTML = this.createEnergyBarHTML(player, 'mobile-top');
                 mobilePlayerInfo.insertAdjacentHTML('beforeend', energyBarHTML);
             }
-        } else if (player === 2) {
-            const mobilePlayerInfo = document.querySelector(`.players-bottom .player-2-info`);
+        } else if (player === 2 || player === 5) {
+            const mobilePlayerInfo = document.querySelector(`.players-bottom .player-${player}-info`);
             if (mobilePlayerInfo) {
                 const energyBarHTML = this.createEnergyBarHTML(player, 'mobile-bottom-2');
                 mobilePlayerInfo.insertAdjacentHTML('beforeend', energyBarHTML);

@@ -1,4 +1,4 @@
-import { SUPPORTED_PLAYERS, getCurrentBoardDefinition, getAbsolutePositionForBoard, isJumpPointForBoard, getNextJumpPointForBoard, getOpponentForBoard } from './boards/boardConfig.js';
+import { SUPPORTED_PLAYERS, getCurrentBoardDefinition, getAbsolutePositionForBoard, isJumpPointForBoard, getNextJumpPointForBoard, getOpponentForBoard, getFlightCrossPositionForBoard } from './boards/boardConfig.js';
 // 工具函数模块
 // 包含位置转换、特殊位置判断、绝对位置计算等纯函数
 
@@ -9,34 +9,34 @@ export function isJumpPoint(position) { return isJumpPointForBoard(position, get
 export function getNextJumpPoint(currentPosition) { return getNextJumpPointForBoard(currentPosition, getCurrentBoardDefinition()); }
 
 // 根据棋子在轨道上的位置计算应该的旋转角度
-export function getChessRotationAtPosition(position) {
-    // 特定位置的旋转角度（拐角处）
-    const specificRotations = {
-        1: -90,   // 逆时针转90度
-        5: -90,   // 逆时针转90度
-        8: 90,    // 顺时针转90度
-        14: 90,   // 顺时针转90度
-        19: -90,  // 逆时针转90度
-        21: 90,   // 顺时针转90度
-        27: 90,   // 顺时针转90度
-        30: -90,  // 逆时针转90度
-        34: 90,   // 顺时针转90度
-        40: 90,   // 顺时针转90度
-        44: -90,  // 逆时针转90度
-        47: 90,    // 顺时针转90度
-        50: 90
-    };
-
-    // 累积旋转角度
-    let totalRotation = 0;
-
-    // 遍历所有已经过的拐角位置，累积旋转角度
-    for (let pos = 1; pos <= position; pos++) {
-        if (specificRotations.hasOwnProperty(pos)) {
-            totalRotation += specificRotations[pos];
-        }
+export function getChessRotationAtPosition(playerOrPosition, maybePosition = null, gameState = null) {
+    const position = Number(maybePosition === null ? playerOrPosition : maybePosition);
+    const board = gameState?.getBoardDefinition?.() || getCurrentBoardDefinition();
+    if (board.id === 'classic6') {
+        const track = board.createMainTrack();
+        const clamp = value => Math.max(1, Math.min(board.finishEnd, value));
+        const heading = pos => {
+            const p = clamp(pos);
+            const before = track[Math.max(1, p - 1)] || track[p];
+            const after = track[Math.min(board.finishEnd, p + 1)] || track[p];
+            return Math.atan2(after.y - before.y, after.x - before.x) * 180 / Math.PI;
+        };
+        const base = heading(1);
+        let result = heading(position) - base;
+        while (result > 180) result -= 360;
+        while (result < -180) result += 360;
+        return result;
     }
 
+    // classic4 原始转向表保持不变。
+    const specificRotations = {
+        1: -90, 5: -90, 8: 90, 14: 90, 19: -90, 21: 90,
+        27: 90, 30: -90, 34: 90, 40: 90, 44: -90, 47: 90, 50: 90
+    };
+    let totalRotation = 0;
+    for (let pos = 1; pos <= position; pos++) {
+        if (Object.prototype.hasOwnProperty.call(specificRotations, pos)) totalRotation += specificRotations[pos];
+    }
     return totalRotation;
 }
 
@@ -167,34 +167,11 @@ export async function beatChessAtPosition(absolutePosition, currentPlayer, gameS
  * @returns {number} 完成度（0-100）
  */
 export function calculateChessProgress(chess, player) {
-    // 如果棋子已完成
-    if (chess.finished) {
-        return 100;
-    }
-
-    // 如果棋子还在基地
-    if (chess.position === -1) {
-        return 0;
-    }
-
-    // 计算棋子的进度
-    // 外圈轨道: 0-50 (51格)
-    // 终点航道: 51-56 (6格)
-    // 总共57格
-    const totalSteps = 57;
-    let currentSteps = 0;
-
-    if (chess.position >= 0 && chess.position <= 50) {
-        // 外圈轨道
-        currentSteps = chess.position;
-    } else if (chess.position >= getCurrentBoardDefinition().finishStart && chess.position <= 56) {
-        // 终点航道
-        currentSteps = 51 + (chess.position - 51);
-    }
-
-    // 计算百分比
-    const progress = (currentSteps / totalSteps) * 100;
-    return Math.min(100, Math.max(0, progress));
+    if (chess.finished) return 100;
+    if (chess.position === -1) return 0;
+    const board = getCurrentBoardDefinition();
+    const totalSteps = board.finishEnd + 1;
+    return Math.min(100, Math.max(0, (chess.position / totalSteps) * 100));
 }
 
 // 获取对家玩家编号（1-3, 2-4对应关系）
@@ -259,26 +236,14 @@ export function getEnemyChessCountAtPosition(currentPlayer, position, gameState)
 
 // 检查指定玩家的位置53是否有棋子
 export function hasChessAtPosition53(player, gameState = null) {
-    // 如果没有传入gameState，使用全局gameState
-    if (!gameState) {
-        // 动态导入以避免循环依赖
-        import('./gameState.js').then(module => {
-            gameState = module.gameState;
-        });
-        if (!gameState) return false;
-    }
-
+    if (!gameState) return { hasChess: false };
+    const crossPosition = getFlightCrossPositionForBoard(gameState.getBoardDefinition?.() || getCurrentBoardDefinition());
     const playerChess = gameState.getPlayerChess ? gameState.getPlayerChess() : gameState.playerChess;
-    const pieceCount = gameState.pieceCount || 4; // 获取当前棋子个数，默认为4
-
-    // 检查该玩家是否有棋子在位置53
+    const pieceCount = gameState.pieceCount || 4;
     for (let chessIndex = 0; chessIndex < pieceCount; chessIndex++) {
-        const chess = playerChess[player][chessIndex];
-        if (!chess.finished && chess.position === 53) {
-            return { hasChess: true, chessIndex, chess };
-        }
+        const chess = playerChess[player]?.[chessIndex];
+        if (chess && !chess.finished && chess.position === crossPosition) return { hasChess: true, chessIndex, chess };
     }
-
     return { hasChess: false };
 }
 
@@ -289,23 +254,15 @@ export function hasChessAtPosition53(player, gameState = null) {
  * @returns {Object} - 返回检测结果 { hasStack: boolean, stackInfo: Object|null }
  */
 export function hasOpponentStackAtPosition53(currentPlayer, gameState) {
-    // 位置53的绝对坐标就是53
-    const absolutePosition = 53;
-
-    // 使用现有的叠子检测函数
+    const board = gameState?.getBoardDefinition?.() || getCurrentBoardDefinition();
+    const opponentPlayer = getOpponentPlayer(currentPlayer);
+    if (!opponentPlayer) return { hasStack: false, stackInfo: null };
+    const crossPosition = getFlightCrossPositionForBoard(board);
+    const absolutePosition = getAbsolutePosition(opponentPlayer, crossPosition);
     const stackInfo = isStackAtAbsolutePosition(absolutePosition, gameState);
-
-    if (stackInfo && stackInfo.chessList.length >= 2) {
-        // 检查叠子是否属于对家
-        const opponentPlayer = getOpponentPlayer(currentPlayer);
-        const isOpponentStack = stackInfo.chessList.every(item => item.player === opponentPlayer);
-
-        if (isOpponentStack) {
-            console.log(`[飞棋阻挡] 位置53存在对家${opponentPlayer}的叠子，共${stackInfo.chessList.length}颗棋子`);
-            return { hasStack: true, stackInfo };
-        }
+    if (stackInfo && stackInfo.chessList.length >= 2 && stackInfo.chessList.every(item => item.player === opponentPlayer)) {
+        return { hasStack: true, stackInfo };
     }
-
     return { hasStack: false, stackInfo: null };
 }
 
@@ -348,7 +305,7 @@ export function isStackAtAbsolutePosition(absolutePosition, gameState) {
 export function checkStackInPath(currentPlayer, currentPosition, steps, gameState) {
     // 只检测外圈轨道（1-50）上的叠子，但允许从位置0出发进行检测
     // 如果当前位置小于0或大于等于51，且不是从位置0出发，则跳过检测
-    if (currentPosition < 0 || (currentPosition >= 51 && currentPosition !== 0)) {
+    if (currentPosition < 0 || (currentPosition >= getCurrentBoardDefinition().finishStart && currentPosition !== 0)) {
         return null;
     }
 
@@ -357,7 +314,7 @@ export function checkStackInPath(currentPlayer, currentPosition, steps, gameStat
         const nextPosition = currentPosition + step;
 
         // 如果超出外圈轨道或到达位置0，停止检测
-        if (nextPosition <= 0 || nextPosition > 50) {
+        if (nextPosition <= 0 || nextPosition > getCurrentBoardDefinition().outerEnd) {
             break;
         }
 

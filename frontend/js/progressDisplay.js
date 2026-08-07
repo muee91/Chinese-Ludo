@@ -90,7 +90,7 @@ class ProgressDisplay {
                 } else {
                     // 棋子在轨道上，根据位置计算进度
                     // 位置0-56对应0到该棋子权重的进度
-                    const chessProgress = Math.min((chess.position / 56) * progressPerPiece, progressPerPiece);
+                    const chessProgress = Math.min((chess.position / gameState.getFinishEnd()) * progressPerPiece, progressPerPiece);
                     totalProgress += chessProgress;
                 }
             }
@@ -106,8 +106,12 @@ class ProgressDisplay {
 
     // 更新单个玩家的进度显示
     updatePlayerProgress(player, progress) {
+        if (!this.progressItems[player] && this.progressContent) {
+            const element = this.progressContent.querySelector(`[data-player="${player}"]`);
+            if (element) this.progressItems[player] = { element, fillElement: element.querySelector('.progress-fill') };
+        }
         const item = this.progressItems[player];
-        if (!item) return;
+        if (!item || !item.fillElement) return;
 
         const percentage = Math.round(progress);
         

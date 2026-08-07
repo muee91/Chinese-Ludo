@@ -740,7 +740,7 @@ class FlyingChessGame {
         });
 
         // 更新其他玩家为Bot名称
-        for (let i = 1; i <= 4; i++) {
+        for (let i = 1; i <= 6; i++) {
             if (i !== playerNumber) {
                 const botNameElements = document.querySelectorAll(`.player-${i}-info .player-name`);
                 const botName = playerNameManager.getPlayerName(i);
@@ -781,7 +781,7 @@ class FlyingChessGame {
             await import('../assets/emojis.js');
 
             // 如果没有指定激活的AI玩家，默认为除人类玩家外的所有玩家
-            const botsToSetup = activeBotNumbers || [1, 2, 3, 4].filter(i => i !== humanPlayerNumber);
+            const botsToSetup = activeBotNumbers || [1, 2, 3, 4, 5, 6].filter(i => i !== humanPlayerNumber);
 
             // 为每个机器人玩家设置表情
             for (const i of botsToSetup) {

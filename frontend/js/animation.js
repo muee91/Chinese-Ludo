@@ -183,8 +183,7 @@ class Animation {
         }
 
         const chessOffset = -5.6;
-        const rotations = { 1: 180, 2: 270, 3: 0, 4: 90 };
-        const baseRotation = rotations[player];
+        const baseRotation = this.gameState.getPlayerRotation(player);
         const rotationOffset = this.getRotationOffset();
         const positionRotation = this.utils.getChessRotationAtPosition(chess.position);
 
@@ -221,8 +220,7 @@ class Animation {
 
         if (chess.element && startPos) {
             const chessOffset = -5.6;
-            const rotations = { 1: 180, 2: 270, 3: 0, 4: 90 };
-            const baseRotation = rotations[player];
+            const baseRotation = this.gameState.getPlayerRotation(player);
             const rotationOffset = this.getRotationOffset();
 
             const targetX = startPos.x + chessOffset;
@@ -262,8 +260,7 @@ class Animation {
         }
 
         const chessOffset = -5.6;
-        const rotations = { 1: 180, 2: 270, 3: 0, 4: 90 };
-        const baseRotation = rotations[player];
+        const baseRotation = this.gameState.getPlayerRotation(player);
         const rotationOffset = this.getRotationOffset();
         const positionRotation = this.utils.getChessRotationAtPosition(chess.position);
         const stackOffset = this.calculateStackOffset(player, chessIndex, chess.position);
@@ -313,8 +310,7 @@ class Animation {
         }
 
         const chessOffset = -5.6;
-        const rotations = { 1: 180, 2: 270, 3: 0, 4: 90 };
-        const baseRotation = rotations[player];
+        const baseRotation = this.gameState.getPlayerRotation(player);
         const targetX = startPos.x + chessOffset;
         const targetY = startPos.y + chessOffset;
         
@@ -450,8 +446,7 @@ class Animation {
 
         if (chess.element && startPos) {
             const chessOffset = -5.6;
-            const baseRotations = { 1: 180, 2: 270, 3: 0, 4: 90 };
-            const baseRotation = baseRotations[player];
+            const baseRotation = this.gameState.getPlayerRotation(player);
 
             // 获取当前棋子的实际位置
             const currentX = parseFloat(chess.element.getAttribute('x'));
@@ -574,8 +569,7 @@ class Animation {
                 const chessOffset = -5.6;
 
                 // 获取基于玩家的基础旋转角度
-                const rotations = { 1: 180, 2: 270, 3: 0, 4: 90 };
-                const baseRotation = rotations[player];
+                const baseRotation = this.gameState.getPlayerRotation(player);
                 
                 // 获取基于位置的旋转角度
                 const positionRotation = this.utils.getChessRotationAtPosition(chess.position);
@@ -587,8 +581,8 @@ class Animation {
                 // 处理叠子外轮廓样式
                 if (chess.element) {
                     const hasStackOffset = (stackOffset.x !== 0 || stackOffset.y !== 0);
-                    const isFinishLane = chess.position >= 51 && chess.position <= 56;
-                    const shouldHighlightStack = chess.position !== 0 && (!isFinishLane || chess.position === 53);
+                    const isFinishLane = chess.position >= this.gameState.getFinishStart() && chess.position <= this.gameState.getFinishEnd();
+                    const shouldHighlightStack = chess.position !== 0 && (!isFinishLane || chess.position === this.gameState.getFlightCrossPosition());
                     const isStacked = hasStackOffset && shouldHighlightStack;
                     if (isStacked) {
                         chess.element.classList.add('chess-stacked');

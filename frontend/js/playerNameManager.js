@@ -9,7 +9,9 @@ class PlayerNameManager {
             1: '玩家1',
             2: '玩家2',
             3: '玩家3',
-            4: '玩家4'
+            4: '玩家4',
+            5: '玩家5',
+            6: '玩家6'
         };
 
         // 默认Bot名称
@@ -22,7 +24,7 @@ class PlayerNameManager {
      * @param {string} name - 玩家名称
      */
     setPlayerName(playerNumber, name) {
-        if (playerNumber >= 1 && playerNumber <= 4) {
+        if (playerNumber >= 1 && playerNumber <= 6) {
             this.playerNames[playerNumber] = name || `玩家${playerNumber}`;
         }
     }
@@ -55,7 +57,7 @@ class PlayerNameManager {
         const hardBots = [];
         
         activeBotNumbers.forEach(playerNumber => {
-            if (playerNumber !== userPlayerNumber && playerNumber >= 1 && playerNumber <= 4) {
+            if (playerNumber !== userPlayerNumber && playerNumber >= 1 && playerNumber <= 6) {
                 const difficulty = botDifficulties[playerNumber] || 'easy';
                 if (difficulty === 'hard') {
                     hardBots.push(playerNumber);
