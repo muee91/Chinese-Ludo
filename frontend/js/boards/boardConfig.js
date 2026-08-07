@@ -108,9 +108,11 @@ const classic6 = Object.freeze({
     },
     getBaseSlotPositions() {
         const r = this.visual.baseRadius;
+        // #start 的四个圆孔中心是 ±5.8；基地整体缩放后，棋子中心必须使用同样缩放后的孔位。
+        const hole = 5.8 * this.visual.baseScale;
         return [
-            { x: -6.1, y: r - 6.1 }, { x: 6.1, y: r - 6.1 },
-            { x: -6.1, y: r + 6.1 }, { x: 6.1, y: r + 6.1 }
+            { x: -hole, y: r - hole }, { x: hole, y: r - hole },
+            { x: -hole, y: r + hole }, { x: hole, y: r + hole }
         ];
     },
     createMainTrack() {
