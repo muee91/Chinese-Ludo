@@ -5,7 +5,8 @@ import {
   isJumpPointForBoard,
   getOpponentForBoard,
   getFlightCrossPositionForBoard,
-  resolveBoardIdForPlayers
+  resolveBoardIdForPlayers,
+  resolveBoardIdFromStorage
 } from './boardConfig.js';
 
 const b = getBoardDefinition('classic6');
@@ -24,6 +25,43 @@ assert.equal(resolveBoardIdForPlayers([1, 5], 2), 'classic6');
 assert.equal(resolveBoardIdForPlayers([{ id: 'player_x', color: 5 }, { id: 'player_y', color: 1 }], 2), 'classic6');
 assert.equal(resolveBoardIdForPlayers([{ id: 'player_x', playerNumber: 6 }, { id: 'player_y', playerNumber: 2 }], 2), 'classic6');
 assert.equal(resolveBoardIdForPlayers([1, 2, 3, 4, 1], 5), 'classic6');
+
+const originalSessionStorage = globalThis.sessionStorage;
+const storage = new Map();
+globalThis.sessionStorage = {
+  getItem(key) { return storage.has(key) ? storage.get(key) : null; },
+  setItem(key, value) { storage.set(key, String(value)); },
+  removeItem(key) { storage.delete(key); },
+  clear() { storage.clear(); }
+};
+try {
+  sessionStorage.setItem('multiplayerGameData', JSON.stringify({
+    maxPlayers: 6,
+    room: {
+      settings: { maxPlayers: 6 },
+      players: [
+        { id: 'player_a', color: 1 },
+        { id: 'player_b', color: 2 }
+      ]
+    }
+  }));
+  assert.equal(resolveBoardIdFromStorage(), 'classic4', '容量6但实际P1/P2两人局必须保持classic4');
+
+  sessionStorage.setItem('multiplayerGameData', JSON.stringify({
+    maxPlayers: 6,
+    room: {
+      settings: { maxPlayers: 6, boardId: 'classic4' },
+      players: [
+        { id: 'player_a', color: 1 },
+        { id: 'player_b', color: 5 }
+      ]
+    }
+  }));
+  assert.equal(resolveBoardIdFromStorage(), 'classic6', 'P5参与必须覆盖陈旧classic4元数据');
+} finally {
+  if (originalSessionStorage === undefined) delete globalThis.sessionStorage;
+  else globalThis.sessionStorage = originalSessionStorage;
+}
 
 // 六个阵营沿公共环道保持原版13格相位差。
 assert.equal(getAbsolutePositionForBoard(1, 1, b), 1);
