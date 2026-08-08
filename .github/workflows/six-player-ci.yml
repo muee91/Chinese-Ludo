@@ -51,6 +51,7 @@ jobs:
           node --check frontend/tests/sixPlayer.visual.mjs
           node --check frontend/tests/sixPlayer.entry.mjs
           node --check frontend/tests/sixPlayer.gameplay.mjs
+          node --check frontend/tests/sixPlayer.interactionRegression.mjs
           node --check frontend/tests/sixPlayer.rulesRegression.mjs
           node --check frontend/tests/classic4.browserRegression.mjs
           node --check backend/server.cjs
@@ -106,6 +107,8 @@ jobs:
           node tests/sixPlayer.entry.mjs
           SIX_PLAYER_PREVIEW_URL=http://127.0.0.1:4173 \
           node tests/sixPlayer.gameplay.mjs
+          SIX_PLAYER_PREVIEW_URL=http://127.0.0.1:4173 \
+          node tests/sixPlayer.interactionRegression.mjs
           SIX_PLAYER_PREVIEW_URL=http://127.0.0.1:4173 \
           node tests/sixPlayer.rulesRegression.mjs
           SIX_PLAYER_PREVIEW_URL=http://127.0.0.1:4173 \
