@@ -569,7 +569,7 @@ class PlayerSetup {
         const preview = container.closest('.bot-players-preview');
         if (preview) {
             const hasAI = this.localMultiplayerConfig.players.some(p => p && p.isAI === true);
-            const hasEmptySlot = this.localMultiplayerConfig.players.length < 4;
+            const hasEmptySlot = this.localMultiplayerConfig.players.length < 6;
             preview.style.display = (hasAI || hasEmptySlot) ? 'block' : 'none';
         }
 
@@ -592,7 +592,7 @@ class PlayerSetup {
         easyIds.sort((a, b) => a - b);
         hardIds.sort((a, b) => a - b);
 
-        const allSlots = [1, 2, 3, 4];
+        const allSlots = [1, 2, 3, 4, 5, 6];
         const playersById = new Map(this.localMultiplayerConfig.players.map(p => [p.id, p]));
 
         allSlots.forEach(playerNum => {
@@ -828,6 +828,7 @@ class PlayerSetup {
         const menuOnlineBtn = document.getElementById('menuOnlineBtn');
         const menuAiBtn = document.getElementById('menuAiBtn');
         const menuLocalBtn = document.getElementById('menuLocalBtn');
+        const menuSixPlayerBtn = document.getElementById('menuSixPlayerBtn');
         const menuRulesBtn = document.getElementById('menuRulesBtn');
         
         const backToMainMenu = document.getElementById('backToMainMenu');
@@ -854,6 +855,20 @@ class PlayerSetup {
                 if (playerConfigWrapper) playerConfigWrapper.style.display = 'block';
                 this.showConfigPanel();
                 this.showAIConfig();
+            });
+        }
+
+        // 六人模式入口：直接预置 1 名玩家 + 5 名 AI，进入 classic6。
+        // 仍然复用现有人机配置页，用户可以在开始前更换人类颜色和 AI 难度。
+        if (menuSixPlayerBtn) {
+            menuSixPlayerBtn.addEventListener('click', () => {
+                this.currentMode = 'ai';
+                if (configTitle) configTitle.textContent = '六人模式设置';
+                if (mainMenuContainer) mainMenuContainer.style.display = 'none';
+                if (playerConfigWrapper) playerConfigWrapper.style.display = 'block';
+                this.showConfigPanel();
+                this.showAIConfig();
+                this.activateSixPlayerAiPreset();
             });
         }
 
@@ -1005,6 +1020,23 @@ class PlayerSetup {
         setTimeout(() => {
             this.updateCurrentEmojiDisplay();
         }, 100);
+    }
+
+    activateSixPlayerAiPreset() {
+        this.selectedPlayer = 1;
+        this.activeBots = new Set([2, 3, 4, 5, 6]);
+        this.botDifficulties = new Map([2, 3, 4, 5, 6].map(player => [player, 'easy']));
+        this.selectedPieceCount = 4;
+
+        const aiConfigPanel = document.querySelector('.ai-battle-config');
+        if (aiConfigPanel) {
+            aiConfigPanel.querySelectorAll('.color-option').forEach(option => option.classList.remove('selected'));
+            aiConfigPanel.querySelector('.color-option[data-player="1"]')?.classList.add('selected');
+        }
+
+        this.restorePieceCountSelection();
+        this.updateBotPlayers();
+        this.updateStartButton();
     }
 
     // 清理人机对战配置页面的多人联机状态残留
@@ -1391,7 +1423,7 @@ class PlayerSetup {
 
         if (emojiPreview) {
             // 移除所有玩家颜色类
-            emojiPreview.classList.remove('player-1-color', 'player-2-color', 'player-3-color', 'player-4-color');
+            emojiPreview.classList.remove('player-1-color', 'player-2-color', 'player-3-color', 'player-4-color', 'player-5-color', 'player-6-color');
             // 添加当前选中玩家的颜色类
             emojiPreview.classList.add(`player-${playerNumber}-color`);
         }
@@ -1423,7 +1455,7 @@ class PlayerSetup {
 
             // 确保表情预览器有正确的颜色样式
             // 移除所有玩家颜色类
-            previewElement.classList.remove('player-1-color', 'player-2-color', 'player-3-color', 'player-4-color');
+            previewElement.classList.remove('player-1-color', 'player-2-color', 'player-3-color', 'player-4-color', 'player-5-color', 'player-6-color');
             // 添加当前选中玩家的颜色类
             previewElement.classList.add(`player-${this.selectedPlayer}-color`);
         } else {
@@ -1469,8 +1501,8 @@ class PlayerSetup {
         // 清空容器
         botPlayersContainer.innerHTML = '';
 
-        // 获取除了人类玩家之外的其他三个玩家位置
-        const availablePlayerNumbers = [1, 2, 3, 4].filter(num => num !== this.selectedPlayer);
+        // 获取除了人类玩家之外的其他玩家位置（六人模式最多五个 AI）
+        const availablePlayerNumbers = [1, 2, 3, 4, 5, 6].filter(num => num !== this.selectedPlayer);
 
         // 按难度分组计算编号
         const easyBots = [];

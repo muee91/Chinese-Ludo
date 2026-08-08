@@ -2567,6 +2567,11 @@ use[href="#checkmark"] {
     background-color: var(--player-1-color);
 }
 
+/* 六人模式入口：使用 P5 的紫色作为六人棋盘的识别色。 */
+#menuSixPlayerBtn {
+    background-color: var(--player-5-color);
+}
+
 /* 薄荷绿 */
 #menuRulesBtn {
     background-color: var(--player-2-color);
