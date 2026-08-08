@@ -8,6 +8,12 @@ import { progressDisplay } from './progressDisplay.js';
 // 骰子符号常量
 const DICE_SYMBOLS = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 
+// 六人棋盘的席位角度与 CSS 中 six-seat-1..6 的固定槽位一一对应。
+// 角度以 SVG 的正下方为 0°，顺时针为正；这样可以和 boardConfig.playerAngles
+// 以及棋盘 SVG 的旋转保持同一套坐标系。
+const SIX_SEAT_ANGLES = Object.freeze([180, 240, 300, 0, 60, 120]);
+const SIX_SEAT_CLASSES = Object.freeze(SIX_SEAT_ANGLES.map((_, index) => `six-seat-${index + 1}`));
+
 class UIUpdater {
     constructor() {
         // 初始化UI更新器
@@ -583,16 +589,30 @@ class UIUpdater {
 
     // 旋转棋盘和UI (初始化时调用)
     rotateBoard(rotations = 1) {
-        window.boardRotationTotal = 90 * rotations;
-        window.boardRotation = window.boardRotationTotal % 360;
+        this.rotateBoardDegrees(90 * rotations);
+    }
+
+    // 以绝对角度旋转棋盘。经典四人仍通过 rotateBoard(0..3) 调用；
+    // 六人棋盘的基地每隔 60° 分布，因此玩家视角需要支持任意角度。
+    rotateBoardDegrees(degrees = 0) {
+        const numericDegrees = Number(degrees);
+        const rotation = Number.isFinite(numericDegrees) ? numericDegrees : 0;
+        window.boardRotationTotal = rotation;
+        window.boardRotation = ((rotation % 360) + 360) % 360;
         const boardSvg = document.getElementById('board-svg');
         if (boardSvg) {
             boardSvg.style.transition = 'none';
-            boardSvg.style.transform = `rotate(${window.boardRotationTotal}deg)`;
+            boardSvg.style.transform = `rotate(${rotation}deg)`;
             boardSvg.offsetHeight;
         }
-        this.updateDesktopPlayerPositions(window.boardRotation);
-        this.updateMobilePlayerPositions(window.boardRotation);
+
+        if (document.body.classList.contains('six-player-mode')) {
+            this.updateSixPlayerSeatPositions(window.boardRotation);
+            this.updateSixPlayerMobilePositions(window.boardRotation);
+        } else {
+            this.updateDesktopPlayerPositions(window.boardRotation);
+            this.updateMobilePlayerPositions(window.boardRotation);
+        }
         
         // 旋转棋盘后，更新所有棋子的旋转角度和阴影方向，使其保持正向
         if (window.gameInstance && window.gameInstance.animation) {
@@ -608,6 +628,68 @@ class UIUpdater {
                 }
             }
         }
+    }
+
+    // 将六人桌面席位跟随棋盘旋转，保证玩家卡仍然贴近对应基地。
+    updateSixPlayerSeatPositions(rotation) {
+        const playersInfo = document.querySelector('.board-container > .players-info');
+        if (!playersInfo) return;
+
+        const board = gameState.getBoardDefinition();
+        const normalizedRotation = ((Number(rotation) || 0) % 360 + 360) % 360;
+        const nearestSeat = player => {
+            const playerAngle = Number(board.playerAngles?.[player] ?? 0);
+            const target = (playerAngle + normalizedRotation + 360) % 360;
+            return SIX_SEAT_ANGLES.reduce((best, angle, index) => {
+                const distance = Math.abs(((target - angle + 540) % 360) - 180);
+                return distance < best.distance ? { index, distance } : best;
+            }, { index: 0, distance: Infinity }).index + 1;
+        };
+
+        playersInfo.querySelectorAll('.player-info').forEach(card => {
+            const match = card.className.match(/player-(\d+)-info/);
+            if (!match) return;
+            card.classList.remove(...SIX_SEAT_CLASSES);
+            card.classList.add(`six-seat-${nearestSeat(Number(match[1]))}`);
+        });
+    }
+
+    // 移动端六人卡片也按旋转后的基地位置重新分成上/下两排。
+    updateSixPlayerMobilePositions(rotation) {
+        const top = document.querySelector('.players-top');
+        const bottom = document.querySelector('.players-bottom');
+        if (!top || !bottom) return;
+
+        const cards = [...top.querySelectorAll('.player-info'), ...bottom.querySelectorAll('.player-info')];
+        const board = gameState.getBoardDefinition();
+        const normalizedRotation = ((Number(rotation) || 0) % 360 + 360) % 360;
+        const slotForPlayer = player => {
+            const target = (Number(board.playerAngles?.[player] ?? 0) + normalizedRotation + 360) % 360;
+            return SIX_SEAT_ANGLES.reduce((best, angle, index) => {
+                const distance = Math.abs(((target - angle + 540) % 360) - 180);
+                return distance < best.distance ? { index: index + 1, distance } : best;
+            }, { index: 1, distance: Infinity }).index;
+        };
+
+        const playerNumber = card => Number(card.className.match(/player-(\d+)-info/)?.[1] || 0);
+        const bySlot = new Map(cards.map(card => [slotForPlayer(playerNumber(card)), card]));
+        const topSlots = [6, 1, 2];
+        const bottomSlots = [5, 4, 3];
+
+        [...top.querySelectorAll('.player-info'), ...bottom.querySelectorAll('.player-info')]
+            .forEach(card => card.classList.remove('mobile-left', 'mobile-right'));
+        topSlots.forEach((slot, index) => {
+            const card = bySlot.get(slot);
+            if (!card) return;
+            card.classList.add(index === 0 ? 'mobile-left' : index === 2 ? 'mobile-right' : 'mobile-center');
+            top.appendChild(card);
+        });
+        bottomSlots.forEach((slot, index) => {
+            const card = bySlot.get(slot);
+            if (!card) return;
+            card.classList.add(index === 0 ? 'mobile-left' : index === 2 ? 'mobile-right' : 'mobile-center');
+            bottom.appendChild(card);
+        });
     }
     updateDesktopPlayerPositions(rotation) {
         const playersInfo = document.querySelector('.players-info');

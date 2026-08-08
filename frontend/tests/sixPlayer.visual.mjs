@@ -217,7 +217,63 @@ const aiBattleMetrics = await aiBattle.page.evaluate(() => ({
   title: document.title,
   names: [...document.querySelectorAll('.board-container > .players-info .player-name')].map(element => element.textContent?.trim() || ''),
   progressNames: [...document.querySelectorAll('.progress-item .progress-player-name')].map(element => element.textContent?.trim() || ''),
-  activeSeat: [...document.querySelectorAll('.board-container > .players-info .six-seat-active')].map(element => element.querySelector('.player-name')?.textContent?.trim() || '')
+  activeSeat: [...document.querySelectorAll('.board-container > .players-info .six-seat-active')].map(element => element.querySelector('.player-name')?.textContent?.trim() || ''),
+  rotation: window.boardRotation,
+  humanBaseCenter: (() => {
+    const rect = document.getElementById('player1-start')?.getBoundingClientRect();
+    return rect ? { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 } : null;
+  })(),
+  humanCardCenter: (() => {
+    const rect = document.querySelector('.board-container > .players-info .player-1-info')?.getBoundingClientRect();
+    return rect ? { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 } : null;
+  })(),
+  boardCenter: (() => {
+    const rect = document.getElementById('board-svg')?.getBoundingClientRect();
+    return rect ? { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 } : null;
+  })(),
+  arrowGeometry: (() => {
+    const board = window.gameInstance.gameState.getBoardDefinition();
+    const track = board.createMainTrack();
+    const rotate = (point, degrees) => {
+      const radians = degrees * Math.PI / 180;
+      return {
+        x: point.x * Math.cos(radians) - point.y * Math.sin(radians),
+        y: point.x * Math.sin(radians) + point.y * Math.cos(radians)
+      };
+    };
+    const errors = [];
+    for (const player of board.players) {
+      const angle = Number(board.playerAngles[player]);
+      const start = rotate(track[board.flightPoint], angle);
+      const end = rotate(track[board.flightTarget], angle);
+      const heading = Math.atan2(end.y - start.y, end.x - start.x) * 180 / Math.PI;
+      [...document.querySelectorAll(`.six-flight-arrow.player-${player}`)].forEach(element => {
+        const match = element.getAttribute('transform')?.match(/^translate\(([-0-9.e]+) ([-0-9.e]+)\) rotate\(([-0-9.e]+)/);
+        if (!match) {
+          errors.push({ player, reason: 'unparseable transform' });
+          return;
+        }
+        const fraction = element.classList.contains('six-flight-arrow-1')
+          ? board.visual.flightArrowFractions[0]
+          : board.visual.flightArrowFractions[1];
+        const expected = {
+          x: start.x + (end.x - start.x) * fraction,
+          y: start.y + (end.y - start.y) * fraction
+        };
+        errors.push({
+          player,
+          pointError: Math.hypot(Number(match[1]) - expected.x, Number(match[2]) - expected.y),
+          headingError: Math.abs(((Number(match[3]) - heading + 540) % 360) - 180)
+        });
+      });
+    }
+    return {
+      count: errors.length,
+      maxPointError: Math.max(...errors.map(item => item.pointError ?? Infinity)),
+      maxHeadingError: Math.max(...errors.map(item => item.headingError ?? Infinity)),
+      errors
+    };
+  })()
 }));
 await aiBattle.page.screenshot({ path: path.join(outputDir, 'six-player-ai.png'), fullPage: true });
 await aiBattle.context.close();
@@ -345,6 +401,16 @@ if (JSON.stringify(aiBattleMetrics.progressNames) !== JSON.stringify(['玩家', 
   failures.push(`AI progress names=${JSON.stringify(aiBattleMetrics.progressNames)}`);
 }
 if (JSON.stringify(aiBattleMetrics.activeSeat) !== JSON.stringify(['玩家'])) failures.push(`AI active seat=${JSON.stringify(aiBattleMetrics.activeSeat)}`);
+if (aiBattleMetrics.rotation !== 180) failures.push(`AI view rotation=${aiBattleMetrics.rotation}`);
+if (!aiBattleMetrics.humanBaseCenter || !aiBattleMetrics.boardCenter || aiBattleMetrics.humanBaseCenter.y <= aiBattleMetrics.boardCenter.y) {
+  failures.push(`AI human base is not below board center=${JSON.stringify(aiBattleMetrics)}`);
+}
+if (!aiBattleMetrics.humanCardCenter || !aiBattleMetrics.boardCenter || aiBattleMetrics.humanCardCenter.y <= aiBattleMetrics.boardCenter.y) {
+  failures.push(`AI human seat is not below board center=${JSON.stringify(aiBattleMetrics)}`);
+}
+if (aiBattleMetrics.arrowGeometry.count !== 12 || aiBattleMetrics.arrowGeometry.maxPointError > 0.01 || aiBattleMetrics.arrowGeometry.maxHeadingError > 0.01) {
+  failures.push(`AI arrow geometry=${JSON.stringify(aiBattleMetrics.arrowGeometry)}`);
+}
 if (sparseP5Metrics.boardId !== 'classic6' || !sparseP5Metrics.sixLayerExists || !sparseP5Metrics.hasP5Chess) {
   failures.push(`sparse P1+P5 board=${JSON.stringify(sparseP5Metrics)}`);
 }

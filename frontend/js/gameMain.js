@@ -320,7 +320,13 @@ class FlyingChessGame {
 
     // 根据玩家颜色自动旋转棋盘
     autoRotateBoard(playerColor) {
-        if (getCurrentBoardDefinition().id === 'classic6') { uiUpdater.rotateBoard(0); return; }
+        const board = getCurrentBoardDefinition();
+        if (board.id === 'classic6') {
+            const playerAngle = Number(board.playerAngles?.[Number(playerColor)]);
+            // 将当前玩家的基地从其默认角度旋到屏幕下方（0°）。
+            uiUpdater.rotateBoardDegrees(Number.isFinite(playerAngle) ? -playerAngle : 0);
+            return;
+        }
         // 目标是将当前玩家放在左下角 (3号位的位置)
         // 棋盘默认顺序 (顺时针，从左下角开始): 紫色(3) -> 蓝色(4) -> 粉色(1) -> 黄色(2)
         // 也就是说：
