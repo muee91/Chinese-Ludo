@@ -77,6 +77,30 @@ function getBroadcastTarget(playerId) {
   return roomManager.getPlayerRoom(playerId) || null;
 }
 
+function resolveBoardIdForPlayers(players = [], playerCount = 0) {
+  const list = Array.isArray(players) ? players : [];
+  const numbers = list.map(player => {
+    if (player && typeof player === 'object') {
+      for (const value of [player.color, player.playerNumber, player.id]) {
+        const numeric = Number(value);
+        if ([1, 2, 3, 4, 5, 6].includes(numeric)) return numeric;
+      }
+      return null;
+    }
+    const numeric = Number(player);
+    return [1, 2, 3, 4, 5, 6].includes(numeric) ? numeric : null;
+  }).filter(Number.isFinite);
+  const effectiveCount = Math.max(Number(playerCount) || 0, list.length, numbers.length);
+  return effectiveCount > 4 || numbers.some(player => player > 4) ? 'classic6' : 'classic4';
+}
+
+function getSessionBoardBounds(gameData) {
+  const isSix = gameData?.boardId === 'classic6' || Number(gameData?.playerCount) > 4;
+  return isSix
+    ? { outerEnd: 76, finishStart: 77, finishEnd: 82 }
+    : { outerEnd: 50, finishStart: 51, finishEnd: 56 };
+}
+
 // -------------------------- 房间管理类 --------------------------
 class RoomManager {
   constructor() {
@@ -149,7 +173,7 @@ class RoomManager {
     // 房间满员：计算已占用席位 = 真实玩家 + AI 玩家
     const aiCount = room.settings?.aiPlayers ? room.settings.aiPlayers.length : 0;
     const totalPlayerCount = room.players.size + aiCount;
-    if (totalPlayerCount >= 4) throw new Error('房间已满');
+    if (totalPlayerCount >= (room.settings?.maxPlayers ?? 6)) throw new Error('房间已满');
     // 取消房间销毁定时器
     if (this.roomDestroyTimers.has(roomCode)) {
       clearTimeout(this.roomDestroyTimers.get(roomCode));
@@ -191,7 +215,7 @@ class RoomManager {
       const aiCount = room.settings?.aiPlayers ? room.settings.aiPlayers.length : 0;
       const totalPlayerCount = room.players.size + aiCount;
       if (totalPlayerCount === 0) continue;
-      if (totalPlayerCount >= 4 && room.gameState !== 'playing') continue;
+      if (totalPlayerCount >= (room.settings?.maxPlayers ?? 6) && room.gameState !== 'playing') continue;
 
       summaries.push({
         code: room.code,
@@ -200,7 +224,8 @@ class RoomManager {
         skillMode: !!(room.settings?.skillMode),
         happyMode: !!(room.settings?.happyMode),
         playerCount: totalPlayerCount, // 包含AI玩家的总人数
-        maxPlayers: 4,
+        maxPlayers: room.settings?.maxPlayers ?? 6,
+        boardId: resolveBoardIdForPlayers([...room.players.values(), ...(room.settings?.aiPlayers || [])], totalPlayerCount),
         gameState: room.gameState,
         createdAt: room.createdAt,
         playerIds: Array.from(room.players.keys()) // 玩家ID列表，用于前端匹配身份
@@ -403,6 +428,8 @@ class GameSession {
     // 初始化游戏数据
     this.gameData = {
       gameSessionId: gameSessionId, // 添加gameSessionId以支持重连
+      boardId: resolveBoardIdForPlayers(players, players.length),
+      playerCount: players.length,
       gameStartTime: Date.now(),
       currentPlayer: null,
       gamePhase: 'rolling',
@@ -511,7 +538,7 @@ class Room {
     this.gameState = 'waiting';
     this.gameSessionId = null;
     this.postGameHostId = null; // 游戏结束后，首次返回房间的玩家ID（用于锁定房主）
-    this.settings = { pieceCount: 4, aiPlayers: [], skillMode: false, happyMode: false };
+    this.settings = { pieceCount: 4, aiPlayers: [], skillMode: false, happyMode: false, maxPlayers: 6, boardId: 'classic4' };
     this.spectators = new Set(); // 观战者ID集合
     this.roomChatHistory = []; // 房间聊天历史（最多50条）
     this.createdAt = Date.now(); // 房间创建时间
@@ -530,7 +557,7 @@ class Room {
       ...Array.from(this.players.values()).map(p => p.color),
       ...this.settings.aiPlayers.map(ai => ai.color)
     ];
-    const availableColors = [1, 2, 3, 4].filter(c => !usedColors.includes(c));
+    const availableColors = [1, 2, 3, 4, 5, 6].filter(c => !usedColors.includes(c));
     if (availableColors.length === 0) throw new Error('房间已满');
 
     // 房主默认颜色1（如果可用）
@@ -776,7 +803,7 @@ class Room {
       displayState: displayState,
       gameSession: sessionData,
       playerReadyStatus: Object.fromEntries(this.playerReadyStatus),
-      settings: this.settings,
+      settings: { ...this.settings, boardId: resolveBoardIdForPlayers([...this.players.values(), ...(this.settings.aiPlayers || [])], this.players.size + (this.settings.aiPlayers?.length || 0)) },
       roomChatHistory: this.roomChatHistory
     };
   }
@@ -1812,7 +1839,7 @@ function handleJoinRoom(ws, playerId, message) {
   // 房间满员：计算已占用席位 = 真实玩家 + AI 玩家
   const aiCount = room.settings?.aiPlayers ? room.settings.aiPlayers.length : 0;
   const totalPlayerCount = room.players.size + aiCount;
-  if (totalPlayerCount >= 4) {
+  if (totalPlayerCount >= (room.settings?.maxPlayers ?? 6)) {
     ws.send(JSON.stringify({ type: 'error', message: '房间已满' }));
     return;
   }
@@ -1921,7 +1948,8 @@ function handleSpectateRoom(ws, playerId, message) {
 
 // 选择颜色（使用中间件）
 const handleSelectColor = withRoomValidation((ws, playerId, message, room, player) => {
-  const colorIndex = message.data.colorIndex;
+  const colorIndex = Number(message.data.colorIndex);
+  if (![1, 2, 3, 4, 5, 6].includes(colorIndex)) throw new Error('无效的颜色');
   // 检查真实玩家和AI玩家占用的颜色
   const usedColors = [
     ...Array.from(room.players.values()).filter(p => p.id !== playerId).map(p => p.color),
@@ -2496,7 +2524,7 @@ function handleStartGame(ws, playerId) {
   const realPlayers = Array.from(room.players.values()).map(p => ({
     id: p.id,
     color: p.color,
-    playerNumber: p.color,  // 玩家编号等于颜色编号（1-4）
+    playerNumber: p.color,  // 玩家编号等于颜色编号（1-6）
     nickname: p.nickname,
     emoji: p.emoji,
     isAI: false,
@@ -2506,7 +2534,7 @@ function handleStartGame(ws, playerId) {
   const aiPlayers = room.settings.aiPlayers.map(ai => ({
     id: ai.color,
     color: ai.color,
-    playerNumber: ai.color,  // 玩家编号等于颜色编号（1-4）
+    playerNumber: ai.color,  // 玩家编号等于颜色编号（1-6）
     nickname: ai.nickname,
     emoji: ai.emoji || 'bot',
     isAI: true,
@@ -2514,6 +2542,8 @@ function handleStartGame(ws, playerId) {
     isHost: false  // AI玩家不是房主
   }));
   const allPlayers = [...realPlayers, ...aiPlayers];
+  room.settings.maxPlayers = 6;
+  room.settings.boardId = resolveBoardIdForPlayers(allPlayers, allPlayers.length);
 
   // 创建游戏会话
   const hostPlayer = realPlayers.find(p => p.isHost);
@@ -2566,6 +2596,8 @@ function handleStartGame(ws, playerId) {
   room.broadcast({
     type: 'gameStarted',
     gameSessionId,
+    boardId: room.settings.boardId,
+    playerCount: allPlayers.length,
     pieceCount: room.settings.pieceCount,
     skillMode: room.settings.skillMode || false,
     happyMode: room.settings.happyMode || false,
@@ -2915,7 +2947,7 @@ function handleFinalMoveResult(ws, playerId, message) {
     // 更新移动的棋子位置
     if (target.gameData.playerChess[player]?.[chessIndex]) {
       target.gameData.playerChess[player][chessIndex].position = finalPosition;
-      if (finalPosition === 56) {
+      if (finalPosition === getSessionBoardBounds(target.gameData).finishEnd) {
         target.gameData.playerChess[player][chessIndex].finished = true;
       } else if (finalPosition === -1) {
         target.gameData.playerChess[player][chessIndex].finished = false;
@@ -3070,12 +3102,13 @@ function handleDiceAnimationStart(ws, playerId, message) {
             const chessArray = gameSession.gameData.playerChess?.[currentPlayer];
             if (chessArray && Array.isArray(chessArray)) {
               const canLaunch = diceVal % 2 === 0;
+              const boardBounds = getSessionBoardBounds(gameSession.gameData);
               const hasMovable = chessArray.some(c => {
                 if (c.finished) return false;
                 const pos = c.position;
                 if (pos === undefined || pos === null || pos === -1) return canLaunch;
-                if (pos >= 0 && pos <= 50) return true;
-                if (pos >= 51 && pos < 56) return true;
+                if (pos >= 0 && pos <= boardBounds.outerEnd) return true;
+                if (pos >= boardBounds.finishStart && pos < boardBounds.finishEnd) return true;
                 return false;
               });
 
@@ -3809,7 +3842,7 @@ const handlePieceMove = withGameSessionValidation((ws, playerId, message, gameSe
   if (gameSession.gameData.playerChess[playerColor]?.[chessIndex]) {
     gameSession.gameData.playerChess[playerColor][chessIndex].position = toPosition;
     // 终点/起点状态更新
-    if (toPosition === 56) {
+    if (toPosition === getSessionBoardBounds(gameSession.gameData).finishEnd) {
       gameSession.gameData.playerChess[playerColor][chessIndex].finished = true;
     } else if (toPosition === -1) {
       gameSession.gameData.playerChess[playerColor][chessIndex].finished = false;
@@ -3878,7 +3911,7 @@ const handleChessMove = withGameSessionValidation((ws, playerId, message, gameSe
   // 更新棋子状态
   if (gameSession.gameData.playerChess[player]?.[chessIndex]) {
     gameSession.gameData.playerChess[player][chessIndex].position = position;
-    if (position === 56) {
+    if (position === getSessionBoardBounds(gameSession.gameData).finishEnd) {
       gameSession.gameData.playerChess[player][chessIndex].finished = true;
     }
     console.log(`更新棋子状态: 玩家${player}棋子${chessIndex} 到${position}${moveType ? ` (${moveType})` : ''}`);
@@ -4436,7 +4469,7 @@ function handleChatMessage(ws, playerId, message) {
   const chatPayload = {
     type: 'chatMessage',
     playerId,
-    playerNumber: player.color, // 统一用color（1-4）
+    playerNumber: player.color, // 统一用color（1-6）
     playerName: sanitizeText(player.nickname),
     message: sanitizedMessage,
     timestamp: message?.data?.timestamp || message?.timestamp || Date.now()

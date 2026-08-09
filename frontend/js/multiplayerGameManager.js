@@ -5,6 +5,8 @@
 import { reconnectManager } from './reconnectManager.js';
 import { activePlayerManager } from './activePlayerManager.js';
 import { playerIdManager } from './playerIdManager.js';
+import { prepareBoardForCurrentMode } from './sixPlayerBoardRenderer.js';
+import { resolveBoardIdForPlayers } from './boards/boardConfig.js';
 
 // 声明全局变量，这些变量在游戏运行时会被设置
 let gameState, uiUpdater, gameInfo;
@@ -292,7 +294,7 @@ class MultiplayerGameManager {
         // 获取激活玩家列表
         const activePlayers = activePlayerManager.getActivePlayers();
 
-        for (let player = 1; player <= 4; player++) {
+        for (let player = 1; player <= 6; player++) {
             const isActive = activePlayers.includes(player);
             const chessElements = document.querySelectorAll(`#board-svg use[href="#chess"].player-${player}`);
 
@@ -500,7 +502,7 @@ class MultiplayerGameManager {
         if (!gs || !gs.playerChess) return;
 
         const playerChessData = {};
-        for (let p = 1; p <= 4; p++) {
+        for (let p = 1; p <= 6; p++) {
             if (!gs.playerChess[p]) continue;
             playerChessData[p] = {};
             for (let i = 0; i < gs.pieceCount; i++) {
@@ -547,7 +549,7 @@ class MultiplayerGameManager {
         console.log('[棋盘同步] 收到参考状态，开始比对:', data.playerChess);
 
         let changed = false;
-        for (let p = 1; p <= 4; p++) {
+        for (let p = 1; p <= 6; p++) {
             if (!data.playerChess[p] || !gs.playerChess[p]) continue;
             for (let i = 0; i < gs.pieceCount; i++) {
                 const remote = data.playerChess[p][i];
@@ -558,7 +560,7 @@ class MultiplayerGameManager {
                     local.position = remote.position;
                     local.finished = remote.finished;
                     if (remote.finished) {
-                        gs.updateChessPosition(p, i, remote.position || 56);
+                        gs.updateChessPosition(p, i, remote.position ?? gs.getFinishEnd());
                     }
                     changed = true;
                 }
@@ -785,6 +787,30 @@ class MultiplayerGameManager {
                 }
             }
             
+            // 观战在拿到服务器房间数据后才能确定是 classic4 还是 classic6。
+            const inferredSpectatorBoardId = resolveBoardIdForPlayers(playersList, playersList.length);
+            const spectatorBoardId = inferredSpectatorBoardId === 'classic6'
+                ? 'classic6'
+                : (data.gameData?.boardId
+                    || data.gameSession?.gameData?.boardId
+                    || data.room?.settings?.boardId
+                    || 'classic4');
+            const spectatorConfig = {
+                mode: 'online_multiplayer',
+                boardId: spectatorBoardId,
+                playerCount: playersList.length,
+                pieceCount: data.room?.settings?.pieceCount || data.gameData?.pieceCount || 4,
+                skillMode: data.room?.settings?.skillMode === true,
+                happyMode: data.room?.settings?.happyMode === true
+            };
+            sessionStorage.setItem('gameConfig', JSON.stringify(spectatorConfig));
+
+            if (gameState?.getBoardDefinition?.().id !== spectatorBoardId) {
+                gameState.resetGameState();
+                prepareBoardForCurrentMode();
+                this.gameInstance?.setupChessElements?.();
+            }
+
             // 初始化音频加载状态跟踪，确保后续 handleAudioLoaded 能正常工作
             this.audioLoadedPlayers = new Set();
             this.totalPlayers = activePlayers.length;
@@ -794,10 +820,7 @@ class MultiplayerGameManager {
             const isSkillMode = data.room && data.room.settings && data.room.settings.skillMode === true;
             if (isSkillMode) {
                 // 更新sessionStorage，让积分管理器能读取到正确的配置
-                const configStr = sessionStorage.getItem('gameConfig');
-                let config = configStr ? JSON.parse(configStr) : { mode: 'online_multiplayer' };
-                config.skillMode = true;
-                config.pieceCount = data.room.settings.pieceCount || 4;
+                const config = { ...spectatorConfig, skillMode: true };
                 sessionStorage.setItem('gameConfig', JSON.stringify(config));
                 
                 // 重新初始化积分系统和道具管理器
@@ -1470,7 +1493,7 @@ class MultiplayerGameManager {
             let restoredCount = 0;
 
             // 执行棋子视觉位置恢复
-            for (let player = 1; player <= 4; player++) {
+            for (let player = 1; player <= 6; player++) {
                 for (let chessIdx = 0; chessIdx < pieceCount; chessIdx++) {
                     const chess = gameState.playerChess[player][chessIdx];
 
@@ -2592,7 +2615,7 @@ class MultiplayerGameManager {
 
             // 更新棋子状态
             if (boardState.playerChess) {
-                for (let player = 1; player <= 4; player++) {
+                for (let player = 1; player <= 6; player++) {
                     if (boardState.playerChess[player]) {
                         for (let i = 0; i < boardState.playerChess[player].length; i++) {
                             const chessState = boardState.playerChess[player][i];

@@ -1,4 +1,5 @@
 import { activePlayerManager } from './activePlayerManager.js';
+import { SUPPORTED_PLAYERS, getCurrentBoardDefinition } from './boards/boardConfig.js';
 
 // 游戏状态管理模块
 class GameState {
@@ -6,8 +7,11 @@ class GameState {
         // 思考时间常量（毫秒）
         this.THINKING_TIME = 20000; // 20秒思考时间
 
+        this.boardDefinition = getCurrentBoardDefinition();
+        this.maxPlayers = this.boardDefinition.playerCount;
+
         // 游戏基础状态
-        this.currentPlayer = null; // 当前玩家 (1-4)，初始设为null以确保首次设置时触发日志
+        this.currentPlayer = null; // 当前玩家 (1-6，实际参与者由 activePlayerManager 控制)，初始设为null以确保首次设置时触发日志
         this.gamePhase = 'rolling'; // 游戏阶段: waiting, rolling, selecting, moving, finished
         this.diceValue = 0; // 骰子点数
         this.selectedChess = null; // 选中的棋子
@@ -70,6 +74,8 @@ class GameState {
             ]
         };
 
+        // 六人棋盘继续使用原 GameState；仅根据棋盘定义切换几何坐标。
+        this.applyBoardStartPositions();
         // 初始化玩家棋子状态（默认4个棋子）
         this.initializePlayerChess(4);
 
@@ -129,14 +135,52 @@ class GameState {
             3: { remoteDice: 0, teleport: 0, polyhedralDice: 0, mysteryBox: 0 },
             4: { remoteDice: 0, teleport: 0, polyhedralDice: 0, mysteryBox: 0 }
         };
+        this.ensureSupportedPlayerState();
     }
+
+    applyBoardStartPositions() {
+        const board = this.getBoardDefinition();
+        if (board.id === 'classic6') {
+            const slots = board.getBaseSlotPositions();
+            for (const player of SUPPORTED_PLAYERS) {
+                this.startPositions[player] = slots.map(point => ({ ...point }));
+            }
+            return;
+        }
+        // classic4 保持原坐标；5/6 仅作为未激活的兼容状态槽。
+        const fallback = this.startPositions[3] || this.startPositions[1] || [];
+        for (const player of [5, 6]) {
+            this.startPositions[player] = fallback.map(point => ({ ...point }));
+        }
+    }
+
+    ensureSupportedPlayerState() {
+        const diceTemplate = () => ({ 1:0, 2:0, 3:0, 4:0, 5:0, 6:0 });
+        for (const player of SUPPORTED_PLAYERS) {
+            this.defeatCounts[player] ||= {};
+            for (const opponent of SUPPORTED_PLAYERS) if (opponent !== player) this.defeatCounts[player][opponent] ??= 0;
+            this.diceStatistics[player] ||= diceTemplate();
+            this.totalDistance[player] ??= 0;
+            this.totalEnergyGained[player] ??= 0;
+            this.skillUsage[player] ||= { remoteDice:0, teleport:0, polyhedralDice:0, mysteryBox:0 };
+            for (const key of ['consecutiveOnes','consecutiveNoTakeoff','maxConsecutiveSixes','bounceSteps','maxTeleportDistance','mysteryBoxMax','polyhedralMax','skillUseCount']) this.titleStats[key][player] ??= 0;
+            for (const key of ['mysteryBoxMin','polyhedralMin']) this.titleStats[key][player] ??= 99;
+        }
+    }
+
+    getBoardDefinition() { return this.boardDefinition || getCurrentBoardDefinition(); }
+    getOuterTrackEnd() { return this.getBoardDefinition().outerEnd; }
+    getFinishStart() { return this.getBoardDefinition().finishStart; }
+    getFinishEnd() { return this.getBoardDefinition().finishEnd; }
+    getFlightCrossPosition() { return this.getBoardDefinition().getFlightCrossPosition(); }
+    getPlayerRotation(player) { return this.getBoardDefinition().playerAngles[Number(player)] ?? 0; }
 
     // 初始化玩家棋子状态
     initializePlayerChess(pieceCount) {
         this.pieceCount = pieceCount;
         this.playerChess = {};
 
-        for (let player = 1; player <= 4; player++) {
+        for (const player of SUPPORTED_PLAYERS) {
             this.playerChess[player] = [];
             for (let i = 0; i < pieceCount; i++) {
                 this.playerChess[player].push({
@@ -150,6 +194,7 @@ class GameState {
     }
 
     generateMainTrack() {
+        if (this.boardDefinition?.id === 'classic6') return this.boardDefinition.createMainTrack();
         // 主轨道位置数组，包含所有移动路径
         const track = [];
 
@@ -299,6 +344,11 @@ class GameState {
 
     // 重置游戏状态
     resetGameState() {
+        this.boardDefinition = getCurrentBoardDefinition();
+        this.maxPlayers = this.boardDefinition.playerCount;
+        this.mainTrack = this.generateMainTrack();
+        this.trackRotations = this.calculateTrackRotations(this.mainTrack);
+        this.applyBoardStartPositions();
         // 清除思考时间计时器
         this.clearThinkingTimer();
 
@@ -324,7 +374,7 @@ class GameState {
         this.pauseStartTime = null;
 
         // 重置所有棋子状态
-        for (let player = 1; player <= 4; player++) {
+        for (const player of SUPPORTED_PLAYERS) {
             for (let i = 0; i < this.pieceCount; i++) {
                 this.playerChess[player][i].position = -1;
                 this.playerChess[player][i].finished = false;
@@ -339,8 +389,8 @@ class GameState {
         }
 
         // 重置击败次数统计
-        for (let player = 1; player <= 4; player++) {
-            for (let opponent = 1; opponent <= 4; opponent++) {
+        for (const player of SUPPORTED_PLAYERS) {
+            for (let opponent = 1; opponent <= 6; opponent++) {
                 if (player !== opponent) {
                     this.defeatCounts[player][opponent] = 0;
                 }
@@ -352,7 +402,7 @@ class GameState {
         this.gameEndTime = null;
 
         // 重置总前进距离统计
-        for (let player = 1; player <= 4; player++) {
+        for (const player of SUPPORTED_PLAYERS) {
             this.totalDistance[player] = 0;
         }
 
@@ -379,6 +429,7 @@ class GameState {
             3: { remoteDice: 0, teleport: 0, polyhedralDice: 0, mysteryBox: 0 },
             4: { remoteDice: 0, teleport: 0, polyhedralDice: 0, mysteryBox: 0 }
         };
+        this.ensureSupportedPlayerState();
     }
 
     // 记录首位完成者
@@ -455,9 +506,9 @@ class GameState {
             // 如果棋子已完成，跳过
             if (chess.finished) continue;
 
-            // 如果棋子在起始区域，只有摇到6才能出发
+            // 如果棋子在起始区域，按原中国飞行棋规则：偶数可起飞
             if (chess.position === -1) {
-                if (diceValue === 6) {
+                if (diceValue % 2 === 0) {
                     movableChess.push(i);
                 }
             }

@@ -250,9 +250,9 @@ class BotController {
         const gameState = window.gameInstance.gameState;
         const progressData = [];
         
-        for (let p = 1; p <= 4; p++) {
+        for (let p = 1; p <= 6; p++) {
             // 获取当前激活的玩家列表
-            const activePlayers = activePlayerManager ? activePlayerManager.getActivePlayers() : [1, 2, 3, 4];
+            const activePlayers = activePlayerManager ? activePlayerManager.getActivePlayers() : gameState.getBoardDefinition().players;
             if (activePlayers.includes(p)) {
                 const progress = progressDisplay.calculatePlayerProgress(p, gameState);
                 progressData.push({ player: p, progress: progress });
@@ -294,9 +294,9 @@ class BotController {
         const gameState = window.gameInstance.gameState;
         const progressData = [];
         
-        for (let p = 1; p <= 4; p++) {
+        for (let p = 1; p <= 6; p++) {
             // 获取当前激活的玩家列表
-            const activePlayers = activePlayerManager ? activePlayerManager.getActivePlayers() : [1, 2, 3, 4];
+            const activePlayers = activePlayerManager ? activePlayerManager.getActivePlayers() : gameState.getBoardDefinition().players;
             if (activePlayers.includes(p)) {
                 const progress = progressDisplay.calculatePlayerProgress(p, gameState);
                 progressData.push({ player: p, progress: progress });
@@ -563,7 +563,7 @@ class BotController {
 
                 // 检查是否有棋子在安全轨道（51-56）
                 const hasChessInSafeTrack = playerChess.some(chess =>
-                    chess.position >= 51 && chess.position <= 56 && !chess.finished
+                    chess.position >= gameState.getFinishStart() && chess.position <= gameState.getFinishEnd() && !chess.finished
                 );
 
                 // 检查是否有基地棋子可以起飞
@@ -874,10 +874,11 @@ class BotController {
                                 // - 终点通道(51-56)：基础70 + （越接近56加分越多）
                                 if (pos === -1) {
                                     progressScore = 0;
-                                } else if (pos >= 51 && pos <= 56) {
-                                    progressScore = 70 + (pos - 50) * 5;
+                                } else if (pos >= gameState.getFinishStart() && pos <= gameState.getFinishEnd()) {
+                                    progressScore = 70 + (pos - gameState.getOuterTrackEnd()) * 5;
                                 } else if (pos >= 0) {
-                                    progressScore = 10 + pos;
+                                    const outerEnd = gameState.getOuterTrackEnd();
+                                    progressScore = outerEnd > 0 ? 10 + (pos / outerEnd) * 50 : 10;
                                 }
 
                                 if (progressScore > maxEnemyProgress) {
@@ -1222,9 +1223,9 @@ class BotController {
      */
     isFinishPosition(player, position) {
         if (gameState.isHappyMode()) {
-            return position >= 56;
+            return position >= gameState.getFinishEnd();
         }
-        return position === 56;
+        return position === gameState.getFinishEnd();
     }
 
     /**
@@ -1241,11 +1242,11 @@ class BotController {
         const targetPosition = currentPosition + diceValue;
 
         // 只有在终点通道（位置51-56）才会发生反弹
-        if (currentPosition >= 51 && currentPosition < 56) {
-            if (targetPosition > 56) {
+        if (currentPosition >= gameState.getFinishStart() && currentPosition < gameState.getFinishEnd()) {
+            if (targetPosition > gameState.getFinishEnd()) {
                 // 计算反弹后的位置
-                const overflow = targetPosition - 56;
-                const finalPosition = 56 - overflow;
+                const overflow = targetPosition - gameState.getFinishEnd();
+                const finalPosition = gameState.getFinishEnd() - overflow;
                 return {
                     willBounce: true,
                     finalPosition: finalPosition
@@ -1267,7 +1268,7 @@ class BotController {
             canBeat: false,
             targets: []
         };
-        if (position >= 51 && position <= 56) {
+        if (position >= gameState.getFinishStart() && position <= gameState.getFinishEnd()) {
             return result;
         }
 
@@ -1334,20 +1335,18 @@ class BotController {
         }
 
         // 检查特殊飞棋点
-        if (targetPosition === 14 || targetPosition === 18) {
+        const board = gameState.getBoardDefinition();
+        if (targetPosition === board.flightPredecessor || targetPosition === board.flightPoint) {
             const isHappyMode = gameState.isHappyMode();
             // 检查位置53是否有对家叠子（欢乐模式不阻挡）
             const stackCheckResult = isHappyMode ? { hasStack: false } : this.utils.hasOpponentStackAtPosition53(player, gameState);
             if (!stackCheckResult.hasStack) {
-                let flyTarget;
-                if (targetPosition === 14) {
-                    flyTarget = 30; // 14->18->30
-                } else if (targetPosition === 18) {
-                    flyTarget = 34; // 18->30->34
-                }
+                const flyTarget = board.flightTarget;
 
                 // 检查飞棋路径中是否有叠子阻挡（欢乐模式不阻挡）
-                const flyPathStack = !isHappyMode ? this.utils.checkStackInJumpPath(player, targetPosition, flyTarget, gameState) : null;
+                const flyPathStack = !isHappyMode
+                    ? this.utils.checkStackInFlightPath(player, board.flightPoint, flyTarget, gameState)
+                    : null;
                 if (flyPathStack && flyPathStack.hasStack) {
                     // 飞棋路径被叠子阻挡，无法飞棋，按普通跳子处理
                     console.log(`[飞棋检测] 飞棋路径被叠子阻挡，无法飞棋，按普通跳子处理`);

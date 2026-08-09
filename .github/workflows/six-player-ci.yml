@@ -1,0 +1,145 @@
+name: Six Player Integrated CI
+
+on:
+  push:
+    branches:
+      - agent/add-six-player-foundation
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --workspaces=false
+      - name: Install Rollup Linux native binary
+        working-directory: frontend
+        run: npm install --no-save --workspaces=false @rollup/rollup-linux-x64-gnu
+      - name: Install backend dependencies
+        run: npm install --prefix backend --no-package-lock --workspaces=false
+      - name: Check integrated JavaScript syntax
+        run: |
+          node --check frontend/js/boards/boardConfig.js
+          node --check frontend/js/sixPlayerBoardRenderer.js
+          node --check frontend/js/sixPlayerUi.js
+          node --check frontend/js/activePlayerManager.js
+          node --check frontend/js/utils.js
+          node --check frontend/js/gameState.js
+          node --check frontend/js/chessPiece.js
+          node --check frontend/js/animation.js
+          node --check frontend/js/dice.js
+          node --check frontend/js/uiUpdater.js
+          node --check frontend/js/botController.js
+          node --check frontend/js/energyManager.js
+          node --check frontend/js/energyDisplay.js
+          node --check frontend/js/skillManager.js
+          node --check frontend/js/settlementModal.js
+          node --check frontend/js/gameMain.js
+          node --check frontend/js/multiplayerManager.js
+          node --check frontend/js/multiplayerGameManager.js
+          node --check frontend/js/spectateMain.js
+          node --check frontend/tests/sixPlayer.visual.mjs
+          node --check frontend/tests/sixPlayer.entry.mjs
+          node --check frontend/tests/sixPlayer.gameplay.mjs
+          node --check frontend/tests/sixPlayer.interactionRegression.mjs
+          node --check frontend/tests/sixPlayer.rulesRegression.mjs
+          node --check frontend/tests/classic4.browserRegression.mjs
+          node --check backend/server.cjs
+          node --check backend/sixPlayerOnline.e2e.cjs
+      - name: Test classic4 compatibility and classic6 topology
+        working-directory: frontend
+        run: npm run test:six-player
+      - name: Verify six-player source invariants
+        run: |
+          grep -q "playerCount: 6" frontend/js/boards/boardConfig.js
+          grep -q "sectorLength: 13" frontend/js/boards/boardConfig.js
+          grep -q "flightPoint: 26" frontend/js/boards/boardConfig.js
+          grep -q "flightTarget: 50" frontend/js/boards/boardConfig.js
+          grep -q "opponents: Object.freeze({ 1: 4, 2: 5, 3: 6" frontend/js/boards/boardConfig.js
+          grep -q "maxPlayers: 6" backend/server.cjs
+          grep -q "boardId: room.settings.boardId" backend/server.cjs
+          grep -q "\[1, 2, 3, 4\].includes(pieceCount)" backend/server.cjs
+          ! grep -q "\[1, 2, 3, 4, 5, 6\].includes(pieceCount)" backend/server.cjs
+          ! grep -q "totalPlayerCount >= 4" backend/server.cjs
+          grep -q "'player-5-color', 'player-6-color'" frontend/js/multiplayerManager.js
+          grep -q "gameState.getFinishEnd()" frontend/js/botController.js
+          grep -q "diceValue % 2 === 0" frontend/js/uiUpdater.js
+          grep -q "spectatorBoardId" frontend/js/multiplayerGameManager.js
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+      - name: Verify production pages remain original entrypoints
+        run: |
+          test -f frontend/dist/game.html
+          test -f frontend/dist/index.html
+          test -f frontend/dist/spectate.html
+          test ! -f frontend/dist/six-player.html
+      - name: Install Chromium for browser smoke
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Run real browser visual gameplay rules and classic4 regression smoke
+        working-directory: frontend
+        run: |
+          mkdir -p /tmp/six-player-visual
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/six-player-vite.log 2>&1 &
+          VITE_PID=$!
+          trap 'kill $VITE_PID || true' EXIT
+          READY=0
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173/game.html >/dev/null; then READY=1; break; fi
+            sleep 1
+          done
+          if [ "$READY" != "1" ]; then cat /tmp/six-player-vite.log; exit 1; fi
+          SIX_PLAYER_PREVIEW_URL=http://127.0.0.1:4173 \
+          SIX_PLAYER_SCREENSHOT_DIR=/tmp/six-player-visual \
+          node tests/sixPlayer.visual.mjs
+          SIX_PLAYER_PREVIEW_URL=http://127.0.0.1:4173 \
+          node tests/sixPlayer.entry.mjs
+          SIX_PLAYER_PREVIEW_URL=http://127.0.0.1:4173 \
+          node tests/sixPlayer.gameplay.mjs
+          SIX_PLAYER_PREVIEW_URL=http://127.0.0.1:4173 \
+          node tests/sixPlayer.interactionRegression.mjs
+          SIX_PLAYER_PREVIEW_URL=http://127.0.0.1:4173 \
+          node tests/sixPlayer.rulesRegression.mjs
+          SIX_PLAYER_PREVIEW_URL=http://127.0.0.1:4173 \
+          node tests/classic4.browserRegression.mjs
+      - name: Run six-player online room WebSocket e2e
+        run: |
+          PORT=3101 node backend/server.cjs > /tmp/six-player-backend.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          READY=0
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:3101/api/stats >/dev/null; then READY=1; break; fi
+            sleep 1
+          done
+          if [ "$READY" != "1" ]; then cat /tmp/six-player-backend.log; exit 1; fi
+          SIX_PLAYER_WS_URL=ws://127.0.0.1:3101 \
+          SIX_PLAYER_HTTP_URL=http://127.0.0.1:3101 \
+          node backend/sixPlayerOnline.e2e.cjs
+      - name: Upload six-player browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: six-player-browser-screenshots
+          path: /tmp/six-player-visual/*.png
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload six-player backend log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: six-player-backend-log
+          path: /tmp/six-player-backend.log
+          if-no-files-found: ignore
+          retention-days: 7

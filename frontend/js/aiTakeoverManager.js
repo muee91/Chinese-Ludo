@@ -415,7 +415,7 @@ class AITakeoverManager {
         const botPlayers = gameState.getBotPlayers();
 
         // 遍历所有玩家，为非电脑玩家添加【Bot】后缀
-        for (let player = 1; player <= 4; player++) {
+        for (let player = 1; player <= 6; player++) {
             if (!botPlayers.includes(player)) {
                 this.modifyPlayerName(player);
             }

@@ -6,6 +6,7 @@
 // 导入重连管理器
 import { reconnectManager } from './reconnectManager.js';
 import { nicknameGenerator } from './nicknameGenerator.js';
+import { resolveBoardIdForPlayers } from './boards/boardConfig.js';
 
 class MultiplayerManager {
     constructor() {
@@ -737,7 +738,7 @@ class MultiplayerManager {
 
     getRoomChatNameColorClass(playerNumber) {
         const colorIndex = Number(playerNumber);
-        if ([1, 2, 3, 4].includes(colorIndex)) {
+        if ([1, 2, 3, 4, 5, 6].includes(colorIndex)) {
             return `player-${colorIndex}-name`;
         }
         return '';
@@ -750,7 +751,7 @@ class MultiplayerManager {
         const text = String(message || '').trim();
         if (!text) return;
 
-        const normalizedPlayerNumber = [1, 2, 3, 4].includes(Number(playerNumber))
+        const normalizedPlayerNumber = [1, 2, 3, 4, 5, 6].includes(Number(playerNumber))
             ? Number(playerNumber)
             : null;
 
@@ -2264,7 +2265,7 @@ class MultiplayerManager {
             const playerCountEl = document.createElement('div');
             playerCountEl.className = 'public-room-player-count';
             const playerCount = (room.playerCount != null ? room.playerCount : 0);
-            const maxPlayers = (room.maxPlayers != null ? room.maxPlayers : 4);
+            const maxPlayers = (room.maxPlayers != null ? room.maxPlayers : 6);
             playerCountEl.textContent = `${playerCount}/${maxPlayers}`;
 
             item.appendChild(name);
@@ -2628,7 +2629,7 @@ class MultiplayerManager {
                 this.wsClient.createRoom({
                     nickname: nickname,
                     emoji: this.selectedEmoji,
-                    maxPlayers: 4,
+                    maxPlayers: 6,
                     gameMode: 'multiplayer'
                 });
 
@@ -2681,7 +2682,7 @@ class MultiplayerManager {
 
             // 使用WebSocketClient的createRoom方法
             this.wsClient.createRoom({
-                maxPlayers: 4,
+                maxPlayers: 6,
                 gameMode: 'multiplayer',
                 nickname: nickname, // 使用保存的昵称，如果为空，服务器会生成默认昵称
                 emoji: this.selectedEmoji
@@ -3297,7 +3298,7 @@ class MultiplayerManager {
         const preview = document.getElementById('multiplayerEmojiPreview');
         if (preview && this.currentPlayer && this.currentPlayer.color) {
             // 清除所有可能的颜色类
-            preview.classList.remove('player-1-color', 'player-2-color', 'player-3-color', 'player-4-color');
+            preview.classList.remove('player-1-color', 'player-2-color', 'player-3-color', 'player-4-color', 'player-5-color', 'player-6-color');
             // 添加当前玩家的颜色类
             preview.classList.add(`player-${this.currentPlayer.color}-color`);
             // 确保基础类存在
@@ -3672,7 +3673,7 @@ class MultiplayerManager {
         const occupiedColors = Array.from(this.players.values())
             .filter(p => p.color && !p.isAI)
             .map(p => p.color);
-        const availableColors = [1, 2, 3, 4].filter(color => !occupiedColors.includes(color));
+        const availableColors = [1, 2, 3, 4, 5, 6].filter(color => !occupiedColors.includes(color));
 
         availableColors.forEach(color => {
             const aiPlayer = aiPlayers.find(ai => ai.color === color);
@@ -4238,8 +4239,13 @@ class MultiplayerManager {
         console.log('[配置] 欢乐模式:', happyModeEnabled, '(isHost:', this.isHost, ')');
 
         // 设置正确的gameConfig，确保按钮显示正确
+        const inferredBoardId = resolveBoardIdForPlayers(allPlayers, allPlayers.length);
+        const boardId = inferredBoardId === 'classic6'
+            ? 'classic6'
+            : (gameData.boardId || this.currentRoom?.settings?.boardId || 'classic4');
         const gameConfig = {
             mode: 'online_multiplayer',
+            boardId,
             playerCount: allPlayers.length,
             pieceCount: gameData.pieceCount || 4,
             skillMode: skillModeEnabled,
@@ -4341,11 +4347,20 @@ class MultiplayerManager {
         console.log('[配置] 重连时道具模式:', skillModeEnabled);
 
         // 设置正确的gameConfig，确保按钮显示正确
+        const happyModeEnabled = gameData.happyMode !== undefined
+            ? gameData.happyMode
+            : (this.currentRoom?.settings?.happyMode || false);
+        const inferredBoardId = resolveBoardIdForPlayers(allPlayers, allPlayers.length);
+        const boardId = inferredBoardId === 'classic6'
+            ? 'classic6'
+            : (gameData.boardId || this.currentRoom?.settings?.boardId || 'classic4');
         const gameConfig = {
             mode: 'online_multiplayer',
+            boardId,
             playerCount: allPlayers.length,
             pieceCount: gameData.pieceCount || 4,
-            skillMode: skillModeEnabled // 添加道具模式配置
+            skillMode: skillModeEnabled,
+            happyMode: happyModeEnabled
         };
         sessionStorage.setItem('gameConfig', JSON.stringify(gameConfig));
 
@@ -4357,7 +4372,9 @@ class MultiplayerManager {
             gameSessionId: gameSessionId,
             isHost: this.isHost,
             isReconnecting: true, // 标记为重连
-            skillMode: skillModeEnabled, // 明确添加道具模式配置
+            boardId,
+            skillMode: skillModeEnabled,
+            happyMode: happyModeEnabled,
             wsClient: {
                 playerId: this.wsClient.playerId,
                 serverUrl: this.wsClient.serverUrl

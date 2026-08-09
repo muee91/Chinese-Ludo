@@ -1,3 +1,4 @@
+import { activePlayerManager } from './activePlayerManager.js';
 /**
  * 完成进度显示模块 - 负责计算和显示玩家的游戏完成进度
  */
@@ -20,7 +21,7 @@ class ProgressDisplay {
         this.progressContent = this.progressPanel.querySelector('.progress-content') || this.progressPanel;
 
         // 初始化进度项元素引用
-        for (let player = 1; player <= 4; player++) {
+        for (const player of activePlayerManager.getActivePlayers()) {
             const item = this.progressContent.querySelector(`[data-player="${player}"]`);
             if (item) {
                 this.progressItems[player] = {
@@ -90,7 +91,7 @@ class ProgressDisplay {
                 } else {
                     // 棋子在轨道上，根据位置计算进度
                     // 位置0-56对应0到该棋子权重的进度
-                    const chessProgress = Math.min((chess.position / 56) * progressPerPiece, progressPerPiece);
+                    const chessProgress = Math.min((chess.position / gameState.getFinishEnd()) * progressPerPiece, progressPerPiece);
                     totalProgress += chessProgress;
                 }
             }
@@ -106,13 +107,30 @@ class ProgressDisplay {
 
     // 更新单个玩家的进度显示
     updatePlayerProgress(player, progress) {
+        if (!this.progressItems[player] && this.progressContent) {
+            const element = this.progressContent.querySelector(`[data-player="${player}"]`);
+            if (element) this.progressItems[player] = { element, fillElement: element.querySelector('.progress-fill') };
+        }
         const item = this.progressItems[player];
-        if (!item) return;
+        if (!item || !item.element) return;
+
+        // 六人面板会在棋盘初始化时补齐名称/百分比并重建进度条结构；
+        // 重新抓取当前 DOM，避免沿用初始化阶段已脱离文档的旧引用。
+        const currentFillElement = item.element.querySelector('.progress-fill');
+        if (currentFillElement) item.fillElement = currentFillElement;
+        if (!item.fillElement) return;
 
         const percentage = Math.round(progress);
         
         // 更新进度条宽度
         item.fillElement.style.width = `${percentage}%`;
+
+        // 六人模式的紧凑进度项同时显示可读的百分比；classic4 没有
+        // 该元素时保持原有进度条行为不变。
+        const percentageElement = item.element.querySelector('.progress-percentage');
+        if (percentageElement) {
+            percentageElement.textContent = `${percentage}%`;
+        }
     }
 
     // 更新所有玩家的进度
@@ -120,7 +138,7 @@ class ProgressDisplay {
         const progressData = [];
 
         // 计算所有玩家的进度
-        for (let player = 1; player <= 4; player++) {
+        for (const player of activePlayerManager.getActivePlayers()) {
             const progress = this.calculatePlayerProgress(player, gameState);
             progressData.push({
                 player: player,
@@ -171,12 +189,12 @@ class ProgressDisplay {
 
     // 重置所有进度显示
     resetAllProgress() {
-        for (let player = 1; player <= 4; player++) {
+        for (const player of activePlayerManager.getActivePlayers()) {
             this.updatePlayerProgress(player, 0);
         }
 
         // 恢复初始顺序
-        const initialOrder = [1, 2, 3, 4];
+        const initialOrder = activePlayerManager.getActivePlayers();
         initialOrder.forEach(player => {
             const item = this.progressItems[player];
             if (item && item.element) {
@@ -189,7 +207,7 @@ class ProgressDisplay {
     getPlayerRanking(gameState) {
         const progressData = [];
         
-        for (let player = 1; player <= 4; player++) {
+        for (const player of activePlayerManager.getActivePlayers()) {
             const progress = this.calculatePlayerProgress(player, gameState);
             progressData.push({
                 player: player,
@@ -205,7 +223,7 @@ class ProgressDisplay {
 
     // 检查是否有玩家获胜（进度达到100%）
     checkWinner(gameState) {
-        for (let player = 1; player <= 4; player++) {
+        for (const player of activePlayerManager.getActivePlayers()) {
             const progress = this.calculatePlayerProgress(player, gameState);
             if (progress >= 100) {
                 return player;

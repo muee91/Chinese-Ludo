@@ -1,3 +1,4 @@
+import { getCurrentBoardDefinition } from './boards/boardConfig.js';
 /**
  * 棋子模块 - 处理棋子移动相关功能
  * 依赖：gameState.js, utils.js, animation.js, uiUpdater.js, dice.js
@@ -229,9 +230,11 @@ class ChessPiece {
         // 终点通道（51-56）每个玩家各自独立，需要用 player class 过滤
         [fromAbsPos, targetAbsPos].forEach(absPos => {
             if (absPos === undefined || absPos === null) return;
-            const sel = absPos >= 51
-                ? `[data-cpos="${absPos}"].player-${player}`
-                : `[data-cpos="${absPos}"]`;
+            const isEncodedFinish = absPos >= 1000;
+            const relativeFinishPosition = isEncodedFinish ? absPos % 100 : absPos;
+            const sel = isEncodedFinish || relativeFinishPosition >= this.gameState.getFinishStart()
+                ? `[data-cpos="${relativeFinishPosition}"].player-${player}`
+                : `[data-cpos="${relativeFinishPosition}"]`;
             const els = svg.querySelectorAll(sel);
             els.forEach(el => el.classList.add('teleport-grid-highlight'));
         });
@@ -281,7 +284,7 @@ class ChessPiece {
 
             // 生成有效位置列表（1-50，排除当前位置，且必须是空位）
             const validPositions = [];
-            for (let pos = 1; pos <= 50; pos++) {
+            for (let pos = 1; pos <= this.gameState.getOuterTrackEnd(); pos++) {
                 if (pos === chess.position) continue; // 排除当前位置
 
                 // 计算绝对位置
@@ -291,7 +294,7 @@ class ChessPiece {
                 let hasOtherChess = false;
 
                 // 固定4个玩家（游戏默认配置）
-                for (let p = 1; p <= 4; p++) {
+                for (let p = 1; p <= 6; p++) {
                     for (let i = 0; i < this.gameState.pieceCount; i++) {
                         const otherChess = this.gameState.playerChess[p][i];
 
@@ -311,7 +314,7 @@ class ChessPiece {
                         }
 
                         // 跳过在终点通道的棋子（position >= 51，每个玩家独立）
-                        if (otherChess.position >= 51) {
+                        if (otherChess.position >= this.gameState.getFinishStart()) {
                             continue;
                         }
 
@@ -465,8 +468,7 @@ class ChessPiece {
             const chessOffset = -5.6;
 
             // 获取基于玩家的基础旋转角度
-            const baseRotations = { 1: 180, 2: 270, 3: 0, 4: 90 };
-            const baseRotation = baseRotations[player];
+            const baseRotation = this.gameState.getPlayerRotation(player);
 
             // 获取基于位置的旋转角度
             const positionRotation = this.utils.getChessRotationAtPosition(player, chess.position, this.gameState);
@@ -648,9 +650,9 @@ class ChessPiece {
                 const targetPosition = currentPosition + steps;
 
                 // 如果移动后会超过位置56（终点），则需要反弹
-                if (targetPosition > 56 && currentPosition < 56) {
+                if (targetPosition > this.gameState.getFinishEnd() && currentPosition < this.gameState.getFinishEnd()) {
                     needsBounce = true;
-                    bounceSteps = targetPosition - 56;
+                    bounceSteps = targetPosition - this.gameState.getFinishEnd();
                     console.log(`[反弹检测] 从位置${currentPosition}投掷${steps}点会到达${targetPosition}，超出终点，需要反弹${bounceSteps}步`);
                 }
             }
@@ -660,11 +662,11 @@ class ChessPiece {
             if (needsStackCrash || needsStackBounce) {
                 stepsToMove = stackInfo.distanceToStack; // 移动到叠子位置
             } else if (needsBounce) {
-                stepsToMove = 56 - currentPosition; // 移动到终点
+                stepsToMove = this.gameState.getFinishEnd() - currentPosition; // 移动到终点
             } else {
                 // 欢乐模式：超出终点直接到终点
-                if (this.gameState.isHappyMode() && currentPosition + steps > 56) {
-                    stepsToMove = 56 - currentPosition;
+                if (this.gameState.isHappyMode() && currentPosition + steps > this.gameState.getFinishEnd()) {
+                    stepsToMove = this.gameState.getFinishEnd() - currentPosition;
                 } else {
                     stepsToMove = steps; // 正常移动
                 }
@@ -684,7 +686,7 @@ class ChessPiece {
                 chess.position = currentPosition;
                 chess.lastLandPos = this.generateUniqueLastLandPos(chess.position);
 
-                if (currentPosition === 56) {
+                if (currentPosition === this.gameState.getFinishEnd()) {
                     // 到达终点
                     if (!needsBounce && !needsStackBounce) {
                         // 重要：先更新视觉位置到56（此时finished还是false，所以会正常显示）
@@ -839,8 +841,8 @@ class ChessPiece {
                 }
             }
             // 第三阶段：如果需要终点反弹，从终点往后退
-        else if (needsBounce && currentPosition === 56) {
-            console.log(`[终点反弹] 玩家${player}的棋子${chessIndex}从位置56反弹${bounceSteps}步，最终位置${56 - bounceSteps}`);
+        else if (needsBounce && currentPosition === this.gameState.getFinishEnd()) {
+            console.log(`[终点反弹] 玩家${player}的棋子${chessIndex}从终点反弹${bounceSteps}步，最终位置${this.gameState.getFinishEnd() - bounceSteps}`);
 
             // 记录终点反弹步数
             this.gameState.recordBounceSteps(player, bounceSteps);
@@ -887,7 +889,7 @@ class ChessPiece {
             // 欢乐模式：跳过 beat 检测
             const shouldCheckBeat = !chess.finished &&
                 !this.gameState.isHappyMode() &&
-                actualFinalPosition <= 51 &&
+                actualFinalPosition < this.gameState.getFinishStart() &&
                 actualFinalPosition >= 0;
 
             if (shouldCheckBeat) {
@@ -997,12 +999,12 @@ class ChessPiece {
                 const nextPos = pos + 1;
 
                 // 终点处理
-                if (nextPos > 56) {
-                    chess.position = 56;
+                if (nextPos > this.gameState.getFinishEnd()) {
+                    chess.position = this.gameState.getFinishEnd();
                     chess.finished = true;
                     this.animation.updateChessPosition(player, chessIndex);
                     this.updateAllChessPositions();
-                    gameInfo.addChessMove(player, chessIndex, 'move', pos, 56);
+                    gameInfo.addChessMove(player, chessIndex, 'move', pos, this.gameState.getFinishEnd());
                     break;
                 }
 
@@ -1048,7 +1050,7 @@ class ChessPiece {
      */
     updateAllChessPositions(animate = true) {
         const pieceCount = this.gameState.pieceCount || 4; // 获取当前棋子个数，默认为4
-        for (let player = 1; player <= 4; player++) {
+        for (let player = 1; player <= 6; player++) {
             for (let chessIndex = 0; chessIndex < pieceCount; chessIndex++) {
                 const chess = this.gameState.playerChess[player][chessIndex];
                 if (!chess.finished && chess.position >= 0) {
@@ -1062,56 +1064,62 @@ class ChessPiece {
      * 处理特殊位置（起跳点和飞棋点）
      */
     async handleSpecialPositions(player, chessIndex, position) {
-        // 检查位置53是否有对家叠子，如果有则影响飞棋和跳子行为
+        const board = getCurrentBoardDefinition();
+        // 检查终点航道交叉点是否有对家叠子，如果有则影响飞棋和跳子行为
         const stackCheckResult = this.utils.hasOpponentStackAtPosition53(player, this.gameState);
         // 欢乐模式：不检查叠子阻挡，飞棋跳子不受限制
         if (this.gameState.isHappyMode()) {
             stackCheckResult.hasStack = false;
         }
         const hasOpponentStackAt53 = stackCheckResult.hasStack;
+        // 飞棋路径上的叠子（包括当前玩家自己的同色叠子）会取消捷径。
+        const flightPathStack = !this.gameState.isHappyMode()
+            ? this.utils.checkStackInFlightPath(player, board.flightPoint, board.flightTarget, this.gameState)
+            : null;
+        const hasFlightPathStack = Boolean(flightPathStack?.hasStack);
 
         // 检查是否为特殊飞棋点
-        if (position === 14) {
-            if (hasOpponentStackAt53) {
-                // console.log(`棋子到达位置14，但位置53有对家叠子，降级执行正常跳子到18`);
+        if (position === board.flightPredecessor) {
+            if (hasOpponentStackAt53 || hasFlightPathStack) {
+                // console.log(`棋子到达位置14，但终点航道交叉点有对家叠子，降级执行正常跳子到18`);
 
                 // 提示飞棋被阻挡（非回放模式才添加）
                 if (!this._isNetworkReplayMode) {
-                    const opponentPlayer = this.utils.getOpponentPlayer(player);
-                    gameInfo.addStackBlock(player, opponentPlayer);
+                    const blockingPlayer = flightPathStack?.stackPlayer || this.utils.getOpponentPlayer(player);
+                    gameInfo.addStackBlock(player, blockingPlayer);
                 }
 
                 // 直接调用标准的 animateJump，它会自动处理：
                 // 1. 路径中是否有叠子阻挡
                 // 2. 终点是否有叠子阻挡
                 // 3. 起跳点和落点处的击败检测
-                await this.animation.animateJump(player, chessIndex, 18);
+                await this.animation.animateJump(player, chessIndex, board.flightPoint);
 
                 // 如果成功跳到了18，检查是否在18处形成叠子
                 const chess = this.gameState.playerChess[player][chessIndex];
-                if (chess.position === 18) {
-                    this.checkStackFormation(player, 18);
+                if (chess.position === board.flightPoint) {
+                    this.checkStackFormation(player, board.flightPoint);
                 }
             } else {
                 // console.log(`棋子到达位置14，先执行跳子到18，再执行飞棋到30`);
 
                 // 使用animateJump来执行14->18的跳跃，这样会应用正确的时序
-                await this.animation.animateJump(player, chessIndex, 18);
+                await this.animation.animateJump(player, chessIndex, board.flightPoint);
                 const chess = this.gameState.playerChess[player][chessIndex];
-                if (chess.position === 18) {
+                if (chess.position === board.flightPoint) {
                     // 再执行飞棋到30
-                    await this.performFlyingChess(player, chessIndex, 30, true, true, true);
+                    await this.performFlyingChess(player, chessIndex, board.flightTarget, true, true, true);
                 }
             }
             return true; // 触发了特殊动作
-        } else if (position === 18) {
+        } else if (position === board.flightPoint) {
             // 先检查位置18是否有其他玩家的棋子需要beat（飞前撞机）
-            const position18AbsolutePosition = this.utils.getAbsolutePosition(player, 18);
+            const flightPointAbsolutePosition = this.utils.getAbsolutePosition(player, board.flightPoint);
             const isRemoteDiceMove = this.gameState.isRemoteDice === true;
             const prevAnimationGuard = this.gameState.isInChessAnimation;
             this.gameState.isInChessAnimation = true;
             try {
-                const beatResult = await this.utils.beatChessAtPosition(position18AbsolutePosition, player, this.gameState, (p, i) => {
+                const beatResult = await this.utils.beatChessAtPosition(flightPointAbsolutePosition, player, this.gameState, (p, i) => {
                     this.animation.moveChessToStart(p, i, null, false, ANIMATION_DELAY.BEAT_HOME_MOVE, true);
                 }, true, true, isRemoteDiceMove, false, ANIMATION_DELAY.BEAT_HOME_MOVE);
                 
@@ -1126,31 +1134,31 @@ class ChessPiece {
                 this.gameState.isInChessAnimation = prevAnimationGuard;
             }
 
-            if (hasOpponentStackAt53) {
-                // console.log(`棋子到达位置18，但位置53有对家叠子，降级执行正常跳子到22`);
+            if (hasOpponentStackAt53 || hasFlightPathStack) {
+                // console.log(`棋子到达位置18，但终点航道交叉点有对家叠子，降级执行正常跳子到22`);
 
                 // 提示飞棋被阻挡（非回放模式）
                 if (!this._isNetworkReplayMode) {
-                    const opponentPlayer = this.utils.getOpponentPlayer(player);
-                    gameInfo.addStackBlock(player, opponentPlayer);
+                    const blockingPlayer = flightPathStack?.stackPlayer || this.utils.getOpponentPlayer(player);
+                    gameInfo.addStackBlock(player, blockingPlayer);
                 }
 
                 // 直接调用标准的 animateJump，处理所有路径检测和击败检测
-                await this.animation.animateJump(player, chessIndex, 22);
+                await this.animation.animateJump(player, chessIndex, this.utils.getNextJumpPoint(board.flightPoint));
 
                 // 如果成功跳到了22，检查是否在22处形成叠子
                 const chess = this.gameState.playerChess[player][chessIndex];
-                if (chess.position === 22) {
-                    this.checkStackFormation(player, 22);
+                if (chess.position === this.utils.getNextJumpPoint(board.flightPoint)) {
+                    this.checkStackFormation(player, chess.position);
                 }
             } else {
                 // console.log(`棋子到达位置18，先执行飞棋到30，再执行跳子到34`);
                 // 先执行飞棋到30（回放模式不添加信息）
-                await this.performFlyingChess(player, chessIndex, 30, true, true, !this._isNetworkReplayMode);
+                await this.performFlyingChess(player, chessIndex, board.flightTarget, true, true, !this._isNetworkReplayMode);
                 const chess = this.gameState.playerChess[player][chessIndex];
-                if (chess.position === 30) {
+                if (chess.position === board.flightTarget) {
                     // 再执行跳子到34
-                    await this.animation.animateJump(player, chessIndex, 34);
+                    await this.animation.animateJump(player, chessIndex, board.flightPostJump);
                 }
             }
             return true; // 触发了特殊动作
@@ -1186,12 +1194,20 @@ class ChessPiece {
             gameInfo.addChessMove(player, chessIndex, 'fly', chess.position, targetPosition);
         }
 
-        // 检查位置53是否有对家的叠子，如果有则无法飞棋
+        // 检查终点航道交叉点是否有对家的叠子，如果有则无法飞棋
         // 欢乐模式：跳过叠子阻挡检测
         if (!this.gameState.isHappyMode()) {
+            const flightPathStack = this.utils.checkStackInFlightPath(player, chess.position, targetPosition, this.gameState);
+            if (flightPathStack?.hasStack) {
+                if (!this._isNetworkReplayMode) {
+                    gameInfo.addStackBlock(player, flightPathStack.stackPlayer);
+                }
+                console.log(`[飞棋阻挡] 飞行路径位置${flightPathStack.stackPosition}存在叠子，取消捷径`);
+                return false;
+            }
             const stackCheckResult = this.utils.hasOpponentStackAtPosition53(player, this.gameState);
             if (stackCheckResult.hasStack) {
-                // console.log(`[飞棋阻挡] 位置53存在对家叠子，飞棋被阻挡，棋子停在起飞格`);
+                // console.log(`[飞棋阻挡] 终点航道交叉点存在对家叠子，飞棋被阻挡，棋子停在起飞格`);
                 // 添加飞棋被阻挡的信息到游戏信息面板（非回放模式才添加）
                 if (!this._isNetworkReplayMode) {
                     const opponentPlayer = this.utils.getOpponentPlayer(player);
@@ -1204,7 +1220,7 @@ class ChessPiece {
 
         // 检查飞棋终点是否有叠子
         // 欢乐模式：跳过叠子碰撞检测
-        if (!this.gameState.isHappyMode() && targetPosition !== 56) { // 不是终点的情况下才检查叠子
+        if (!this.gameState.isHappyMode() && targetPosition !== this.gameState.getFinishEnd()) { // 不是终点的情况下才检查叠子
             const targetStackInfo = this.utils.isStackAtAbsolutePosition(targetAbsolutePosition, this.gameState);
             if (targetStackInfo && targetStackInfo.player !== player) {
                 // console.log(`[飞棋撞机] 飞棋终点位置${targetPosition}有其他玩家${targetStackInfo.player}的叠子，所有棋子返回各自起点`);
@@ -1253,13 +1269,14 @@ class ChessPiece {
 
         // 只有在check53Beat为true时才检查53号位置的beat
         if (check53Beat) {
-            // 飞棋过程中检查对家位置53是否有单颗棋子进行beat
+            // 飞棋过程中检查对家终点航道交叉点是否有单颗棋子进行beat
             const opponentPlayer = this.utils.getOpponentPlayer(player);
             const opponentChessAt53 = this.utils.hasChessAtPosition53(opponentPlayer, this.gameState);
+            const flightCrossPosition = this.gameState.getFlightCrossPosition();
 
             if (opponentChessAt53.hasChess) {
                 // 使用统一的beat逻辑
-                const beatAbsolutePosition = this.utils.getAbsolutePosition(opponentPlayer, 53);
+                const beatAbsolutePosition = this.utils.getAbsolutePosition(opponentPlayer, flightCrossPosition);
                 const beatResult5 = await this.utils.beatChessAtPosition(
                     beatAbsolutePosition,
                     player,
@@ -1293,7 +1310,7 @@ class ChessPiece {
         this.checkStackFormation(player, targetPosition);
 
         // 如果需要检查终点beat操作（非53号位置的beat）
-        if (checkBeat && targetPosition <= 51 && targetPosition >= 0 && targetPosition !== 56) {
+        if (checkBeat && targetPosition < this.gameState.getFinishStart() && targetPosition >= 0 && targetPosition !== this.gameState.getFinishEnd()) {
             const targetAbsolutePosition = this.utils.getAbsolutePosition(player, targetPosition);
             const beatResult6 = await this.utils.beatChessAtPosition(targetAbsolutePosition, player, this.gameState, (p, i) => {
                 // console.log(`[Beat操作-飞棋终点] 玩家${player}打败玩家${p}在终点位置${targetPosition}的棋子${i}`);
@@ -1348,9 +1365,9 @@ class ChessPiece {
                 if (chess.position === -1) {
                     // 从起始区域出发
                     newPosition = 0;
-                } else if (newPosition > 56) {
+                } else if (newPosition > this.gameState.getFinishEnd()) {
                     // 超出终点，限制在终点
-                    newPosition = 56;
+                    newPosition = this.gameState.getFinishEnd();
                 }
             } else {
                 // 后退
@@ -1371,7 +1388,7 @@ class ChessPiece {
             chess.position = newPosition;
             chess.lastLandPos = this.generateUniqueLastLandPos(chess.position);
 
-            if (newPosition === 56) {
+            if (newPosition === this.gameState.getFinishEnd()) {
                 // 到达终点
                 chess.finished = true;
                 this.animation.moveChessToFinish(player, chessIndex);
@@ -1419,8 +1436,8 @@ class ChessPiece {
 
             for (let i = 0; i < pieceCount; i++) {
                 const chess = this.gameState.playerChess[currentPlayer][i];
-                chess.position = 56;
-                chess.lastLandPos = this.generateUniqueLastLandPos(56);
+                chess.position = this.gameState.getFinishEnd();
+                chess.lastLandPos = this.generateUniqueLastLandPos(this.gameState.getFinishEnd());
                 chess.finished = true;
                 this.animation.moveChessToFinish(currentPlayer, i);
             }
@@ -1451,9 +1468,9 @@ class ChessPiece {
             return false;
         }
 
-        // 额外检查：如果棋子位置为56（终点），也不能移动
-        if (chess.position === 56) {
-            console.log(`[canChessMove] 棋子${chessIndex}位置为56（终点），不能移动`);
+        // 额外检查：如果棋子位于终点，也不能移动
+        if (chess.position === this.gameState.getFinishEnd()) {
+            console.log(`[canChessMove] 棋子${chessIndex}位于终点，不能移动`);
             return false;
         }
 
@@ -1465,14 +1482,14 @@ class ChessPiece {
         // 棋子在轨道上，检查是否可以移动
         const newPosition = chess.position + diceValue;
 
-        // 如果棋子在终点通道（位置51-56），支持反弹机制，任何点数都可以移动
-        if (chess.position >= 51 && chess.position < 56) {
+        // 如果棋子在终点通道（终点通道），支持反弹机制，任何点数都可以移动
+        if (chess.position >= this.gameState.getFinishStart() && chess.position < this.gameState.getFinishEnd()) {
             return true;
         }
 
         // 如果棋子在普通轨道（0-50），可以移动并支持反弹
         // 注意：不再限制点数+位置不能超过56，因为可以反弹
-        if (chess.position >= 0 && chess.position <= 50) {
+        if (chess.position >= 0 && chess.position <= this.gameState.getOuterTrackEnd()) {
             return true;
         }
 

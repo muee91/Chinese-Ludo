@@ -2567,6 +2567,11 @@ use[href="#checkmark"] {
     background-color: var(--player-1-color);
 }
 
+/* 六人模式入口：使用 P5 的紫色作为六人棋盘的识别色。 */
+#menuSixPlayerBtn {
+    background-color: var(--player-5-color);
+}
+
 /* 薄荷绿 */
 #menuRulesBtn {
     background-color: var(--player-2-color);
@@ -7099,3 +7104,16 @@ use[href="#checkmark"] {
         max-width: 340px;
     }
 }
+
+/* 六人棋盘扩展：沿用原版低饱和度色板 */
+:root {
+  --player-5-color:#c7b9df; --player-5-fill:#e8e0f2; --player-5-stats-bg:#f2edf8; --player-5-border:#ad9bc9;
+  --player-6-color:#d9cf98; --player-6-fill:#eee9c9; --player-6-stats-bg:#f7f3df; --player-6-border:#c1b56f;
+}
+.player-5,.player-5-color{color:var(--player-5-color);stroke:var(--player-5-color);fill:var(--player-5-color);--player-border:var(--player-5-border)}
+.player-6,.player-6-color{color:var(--player-6-color);stroke:var(--player-6-color);fill:var(--player-6-color);--player-border:var(--player-6-border)}
+.color-circle.player-5-color,.emoji-preview.player-5-color{background:var(--player-5-color);border-color:var(--player-5-border)}
+.color-circle.player-6-color,.emoji-preview.player-6-color{background:var(--player-6-color);border-color:var(--player-6-border)}
+.player-5-avatar{background:var(--player-5-color);border:2px solid var(--player-5-border);color:#fff}
+.player-6-avatar{background:var(--player-6-color);border:2px solid var(--player-6-border);color:#fff}
+.player-5-defeat{color:var(--player-5-color)} .player-6-defeat{color:var(--player-6-color)}

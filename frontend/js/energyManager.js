@@ -22,10 +22,7 @@ class EnergyManager {
         };
 
         this.playerEnergy = {
-            1: 0,
-            2: 0,
-            3: 0,
-            4: 0
+            1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0
         };
         this.energyDisplay = null; // 将在初始化时设置
     }
@@ -327,7 +324,7 @@ class EnergyManager {
      * 重置所有玩家积分
      */
     resetAllEnergy() {
-        for (let player = 1; player <= 4; player++) {
+        for (let player = 1; player <= 6; player++) {
             this.playerEnergy[player] = 0;
         }
     }

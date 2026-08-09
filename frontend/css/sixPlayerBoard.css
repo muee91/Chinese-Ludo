@@ -1,0 +1,355 @@
+/* 六人棋盘专用布局。
+ *
+ * 六人模式使用一个独立的正方形舞台：棋盘位于舞台中央，六个席位
+ * 固定在舞台边缘。这样不会再继承 classic4 的四角绝对定位规则，
+ * 也不会因控制面板宽度或浏览器视口变化而把玩家卡推到页面外。
+ */
+
+body.six-player-mode {
+  /* 基地放大并贴近 viewBox 边缘后，席位需要再向外让出间距。 */
+  --six-seat-gap: -14px;
+  --six-seat-border: rgba(61, 53, 45, 0.24);
+}
+
+/* P5/P6 动态补出的进度项必须与原四人进度面板使用相同的阵营色语义。 */
+body.six-player-mode .progress-avatar.player-5,
+body.six-player-mode .progress-fill.player-5 {
+  background-color: var(--player-5-color) !important;
+  border-color: var(--player-5-color);
+}
+
+body.six-player-mode .progress-avatar.player-6,
+body.six-player-mode .progress-fill.player-6 {
+  background-color: var(--player-6-color) !important;
+  border-color: var(--player-6-color);
+}
+
+/* 六人卡不显示 classic4 的击败次数列；六人模式将空间留给清晰的
+ * 玩家名、棋盘席位和当前回合状态。其它页面（如结算弹窗）不受影响。 */
+body.six-player-mode .board-container > .players-info .defeat-counts,
+body.six-player-mode .players-top .defeat-counts,
+body.six-player-mode .players-bottom .defeat-counts {
+  display: none !important;
+}
+
+body.six-player-mode .player-1-info { --seat-color: var(--player-1-color); }
+body.six-player-mode .player-2-info { --seat-color: var(--player-2-color); }
+body.six-player-mode .player-3-info { --seat-color: var(--player-3-color); }
+body.six-player-mode .player-4-info { --seat-color: var(--player-4-color); }
+body.six-player-mode .player-5-info { --seat-color: var(--player-5-color); }
+body.six-player-mode .player-6-info { --seat-color: var(--player-6-color); }
+
+body.six-player-mode .progress-details {
+  flex: 1;
+  min-width: 0;
+}
+
+body.six-player-mode .progress-header {
+  margin-bottom: 3px;
+}
+
+body.six-player-mode .progress-player-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+body.six-player-mode .progress-percentage {
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+body.six-player-mode .progress-item[data-player="5"] .progress-player-name {
+  color: var(--player-5-color);
+}
+
+body.six-player-mode .progress-item[data-player="6"] .progress-player-name {
+  color: var(--player-6-color);
+}
+
+/* 桌面/平板：棋盘舞台和六个席位共享同一个定位上下文。 */
+@media (min-width: 696px) {
+  body.six-player-mode .main-layout {
+    align-items: center;
+    gap: 24px;
+  }
+
+  body.six-player-mode .game-container {
+    flex: 1 1 840px;
+    width: min(840px, calc(100vw - 380px));
+    max-width: 840px;
+    min-width: 0;
+  }
+
+  body.six-player-mode .control-panel {
+    flex: 0 0 300px;
+    width: 300px;
+    min-width: 0;
+    padding: 12px 0 12px 0;
+  }
+
+  body.six-player-mode .control-panel-inner {
+    width: 100%;
+  }
+
+  body.six-player-mode .game-control-content {
+    padding: 0;
+  }
+
+  body.six-player-mode .board-container {
+    position: relative;
+    width: min(840px, calc(100vw - 380px), calc(100vh - 48px));
+    aspect-ratio: 1;
+    margin: 0 auto;
+    overflow: visible;
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  body.six-player-mode #board-svg {
+    width: min(700px, calc(100% - 140px));
+    height: auto;
+    max-width: none;
+    aspect-ratio: 1;
+    overflow: visible;
+    flex: 0 0 auto;
+  }
+
+  body.six-player-mode #board-svg .six-ring-cell,
+  body.six-player-mode #board-svg .six-finish-cell {
+    opacity: 0.96;
+  }
+
+  body.six-player-mode .board-container > .players-info {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  body.six-player-mode .board-container > .players-info > .player-info {
+    position: absolute !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    width: 92px;
+    min-height: 0;
+    box-sizing: border-box;
+    justify-content: center;
+    margin: 0 !important;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: transparent;
+    pointer-events: auto;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  }
+
+  body.six-player-mode .board-container > .players-info > .player-info .player-main {
+    gap: 4px;
+  }
+
+  body.six-player-mode .board-container > .players-info > .player-info .player-avatar,
+  body.six-player-mode .board-container > .players-info > .player-info .player-emoji {
+    width: 50px;
+    height: 50px;
+  }
+
+  body.six-player-mode .board-container > .players-info > .player-info .player-name {
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  body.six-player-mode .board-container > .players-info > .player-1-info { --seat-color: var(--player-1-color); }
+  body.six-player-mode .board-container > .players-info > .player-2-info { --seat-color: var(--player-2-color); }
+  body.six-player-mode .board-container > .players-info > .player-3-info { --seat-color: var(--player-3-color); }
+  body.six-player-mode .board-container > .players-info > .player-4-info { --seat-color: var(--player-4-color); }
+  body.six-player-mode .board-container > .players-info > .player-5-info { --seat-color: var(--player-5-color); }
+  body.six-player-mode .board-container > .players-info > .player-6-info { --seat-color: var(--player-6-color); }
+
+  /* 席位顺序与 classic6 的六个基地一致：P1 顶、P2/P3 右、P4 底、P5/P6 左。 */
+  body.six-player-mode .board-container > .players-info > .six-seat-1 {
+    top: var(--six-seat-gap) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
+
+  body.six-player-mode .board-container > .players-info > .six-seat-2 {
+    top: 20% !important;
+    right: var(--six-seat-gap) !important;
+  }
+
+  body.six-player-mode .board-container > .players-info > .six-seat-3 {
+    bottom: 20% !important;
+    right: var(--six-seat-gap) !important;
+  }
+
+  body.six-player-mode .board-container > .players-info > .six-seat-4 {
+    bottom: var(--six-seat-gap) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
+
+  body.six-player-mode .board-container > .players-info > .six-seat-5 {
+    bottom: 20% !important;
+    left: var(--six-seat-gap) !important;
+  }
+
+  body.six-player-mode .board-container > .players-info > .six-seat-6 {
+    top: 20% !important;
+    left: var(--six-seat-gap) !important;
+  }
+
+  body.six-player-mode .board-container > .players-info > .player-info.six-seat-active {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  body.six-player-mode .board-container > .players-info > .player-info.six-seat-active .player-avatar {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--seat-color) 72%, transparent),
+      0 3px 10px rgba(61, 53, 45, 0.18);
+  }
+
+  /* 六人进度面板要能容纳名称、百分比和六条进度。 */
+  body.six-player-mode .progress-panel {
+    max-height: 320px;
+  }
+
+  body.six-player-mode .progress-content {
+    gap: 7px;
+    padding: 10px 12px 12px;
+  }
+}
+
+/* 宽桌面不要把游戏区锁死在 840px；让棋盘舞台在控制区左侧居中，
+ * 避免右边留下大块空白，同时保留舞台内部的席位几何。 */
+@media (min-width: 1261px) {
+  body.six-player-mode .game-container {
+    flex: 1 1 auto;
+    width: auto;
+    max-width: none;
+  }
+}
+
+/* 696-1260：控制区会按基础样式移动到棋盘下方，舞台仍保持独立正方形。 */
+@media (min-width: 696px) and (max-width: 1260px) {
+  /* 平板舞台更窄，席位回到舞台边缘内，避免放大基地后左右卡片越界。 */
+  body.six-player-mode {
+    --six-seat-gap: 0px;
+  }
+
+  body.six-player-mode .game-container {
+    width: 100%;
+    max-width: 840px;
+  }
+
+  body.six-player-mode .board-container {
+    width: min(840px, calc(100vw - 30px), calc(100vh - 48px));
+  }
+}
+
+/* 手机：桌面席位隐藏，六张卡以 3+3 网格紧贴棋盘上下排列。 */
+@media (max-width: 695px) {
+  body.six-player-mode .players-info {
+    display: none !important;
+  }
+
+  body.six-player-mode .players-top,
+  body.six-player-mode .players-bottom {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
+    padding: 4px 10px;
+    box-sizing: border-box;
+  }
+
+  body.six-player-mode .players-top .player-info,
+  body.six-player-mode .players-bottom .player-info {
+    position: static;
+    min-width: 0;
+    width: auto;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    padding: 0 2px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    box-sizing: border-box;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  }
+
+  body.six-player-mode .players-top .player-info .player-main,
+  body.six-player-mode .players-bottom .player-info .player-main {
+    gap: 3px;
+  }
+
+  body.six-player-mode .players-top .player-avatar,
+  body.six-player-mode .players-top .player-emoji,
+  body.six-player-mode .players-bottom .player-avatar,
+  body.six-player-mode .players-bottom .player-emoji {
+    width: 40px;
+    height: 40px;
+  }
+
+  body.six-player-mode .players-top .player-name,
+  body.six-player-mode .players-bottom .player-name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
+  body.six-player-mode .players-top .player-info.six-seat-active,
+  body.six-player-mode .players-bottom .player-info.six-seat-active {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  body.six-player-mode .players-top .player-info.six-seat-active .player-avatar,
+  body.six-player-mode .players-bottom .player-info.six-seat-active .player-avatar {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--seat-color, var(--border-medium)) 72%, transparent),
+      0 3px 9px rgba(61, 53, 45, 0.18);
+  }
+
+  body.six-player-mode .board-container {
+    width: 100%;
+    aspect-ratio: 1;
+    margin: 0;
+    overflow: visible;
+  }
+
+  body.six-player-mode #board-svg {
+    width: 100% !important;
+    height: auto !important;
+    max-width: 100vw;
+    min-width: 0;
+    aspect-ratio: 1;
+  }
+
+  body.six-player-mode .progress-panel {
+    max-height: 280px;
+  }
+
+  body.six-player-mode .progress-content {
+    gap: 5px;
+    padding: 8px 10px 10px;
+  }
+
+  body.six-player-mode .progress-player-name,
+  body.six-player-mode .progress-percentage {
+    font-size: 11px;
+  }
+}

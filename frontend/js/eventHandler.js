@@ -151,8 +151,9 @@ class EventHandler {
     setupChessEvents() {
         const playerChess = gameState.getPlayerChess();
         const pieceCount = gameState.pieceCount; // 获取当前棋子个数
+        const players = gameState.getBoardDefinition().players;
 
-        for (let player = 1; player <= 4; player++) {
+        for (const player of players) {
             for (let i = 0; i < pieceCount; i++) {
                 const element = playerChess[player]?.[i]?.element;
                 if (element) {
@@ -950,7 +951,8 @@ class EventHandler {
         // 移除棋子事件
         const playerChess = gameState.getPlayerChess();
         const pieceCount = gameState.pieceCount || 4;
-        for (let player = 1; player <= 4; player++) {
+        const players = gameState.getBoardDefinition().players;
+        for (const player of players) {
             for (let i = 0; i < pieceCount; i++) {
                 const element = playerChess[player]?.[i]?.element;
                 if (element) {
@@ -970,7 +972,8 @@ class EventHandler {
         // 先移除旧的事件监听器
         const playerChess = gameState.getPlayerChess();
         const pieceCount = gameState.pieceCount || 4;
-        for (let player = 1; player <= 4; player++) {
+        const players = gameState.getBoardDefinition().players;
+        for (const player of players) {
             for (let i = 0; i < pieceCount; i++) {
                 const element = playerChess[player]?.[i]?.element;
                 if (element) {

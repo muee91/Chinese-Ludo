@@ -4,32 +4,38 @@
  */
 class PlayerNameManager {
     constructor() {
-        // 存储玩家名称的映射，键为玩家编号(1-4)，值为玩家名称
-        this.playerNames = {
-            1: '玩家1',
-            2: '玩家2',
-            3: '玩家3',
-            4: '玩家4'
-        };
+        // 存储玩家名称的映射，键为玩家编号(1-6)，值为玩家名称
+        this.playerNames = this.createDefaultPlayerNames();
 
         // 默认Bot名称
         this.defaultBotNames = ['Bot-1', 'Bot-2', 'Bot-3'];
     }
 
+    createDefaultPlayerNames() {
+        return {
+            1: '玩家1',
+            2: '玩家2',
+            3: '玩家3',
+            4: '玩家4',
+            5: '玩家5',
+            6: '玩家6'
+        };
+    }
+
     /**
      * 设置玩家名称
-     * @param {number} playerNumber - 玩家编号 (1-4)
+     * @param {number} playerNumber - 玩家编号 (1-6)
      * @param {string} name - 玩家名称
      */
     setPlayerName(playerNumber, name) {
-        if (playerNumber >= 1 && playerNumber <= 4) {
+        if (playerNumber >= 1 && playerNumber <= 6) {
             this.playerNames[playerNumber] = name || `玩家${playerNumber}`;
         }
     }
 
     /**
      * 获取玩家名称
-     * @param {number} playerNumber - 玩家编号 (1-4)
+     * @param {number} playerNumber - 玩家编号 (1-6)
      * @returns {string} 玩家名称
      */
     getPlayerName(playerNumber) {
@@ -55,7 +61,7 @@ class PlayerNameManager {
         const hardBots = [];
         
         activeBotNumbers.forEach(playerNumber => {
-            if (playerNumber !== userPlayerNumber && playerNumber >= 1 && playerNumber <= 4) {
+            if (playerNumber !== userPlayerNumber && playerNumber >= 1 && playerNumber <= 6) {
                 const difficulty = botDifficulties[playerNumber] || 'easy';
                 if (difficulty === 'hard') {
                     hardBots.push(playerNumber);
@@ -88,12 +94,7 @@ class PlayerNameManager {
      * 重置所有玩家名称为默认值
      */
     reset() {
-        this.playerNames = {
-            1: '玩家1',
-            2: '玩家2',
-            3: '玩家3',
-            4: '玩家4'
-        };
+        this.playerNames = this.createDefaultPlayerNames();
     }
 
     /**

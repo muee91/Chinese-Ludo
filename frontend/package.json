@@ -8,14 +8,16 @@
     "build": "vite build",
     "preview": "vite preview",
     "server": "node server.cjs",
-    "start": "concurrently \"npm run server\" \"npm run dev\""
+    "start": "concurrently \"npm run server\" \"npm run dev\"",
+    "test:six-player": "node js/boards/classic4Compatibility.test.mjs && node js/boards/classic6.test.mjs"
   },
   "devDependencies": {
-    "vite": "^7.1.7",
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "playwright": "^1.54.2",
+    "vite": "^7.1.7"
   },
   "dependencies": {
-    "ws": "^8.18.0",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "ws": "^8.18.0"
   }
 }

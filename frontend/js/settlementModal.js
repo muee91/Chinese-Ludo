@@ -380,7 +380,9 @@ class SettlementModal {
             1: getComputedStyle(document.documentElement).getPropertyValue('--player-1-color').trim() || '#E74C3C',
             2: getComputedStyle(document.documentElement).getPropertyValue('--player-2-color').trim() || '#3498DB',
             3: getComputedStyle(document.documentElement).getPropertyValue('--player-3-color').trim() || '#2ECC71',
-            4: getComputedStyle(document.documentElement).getPropertyValue('--player-4-color').trim() || '#F1C40F'
+            4: getComputedStyle(document.documentElement).getPropertyValue('--player-4-color').trim() || '#F1C40F',
+            5: getComputedStyle(document.documentElement).getPropertyValue('--player-5-color').trim() || '#c7b9df',
+            6: getComputedStyle(document.documentElement).getPropertyValue('--player-6-color').trim() || '#d9cf98'
         };
 
         // 清空画布
@@ -824,7 +826,7 @@ class SettlementModal {
         if (!this.defeatCountDisplay) return {};
 
         const defeatCounts = {};
-        for (let opponent = 1; opponent <= 4; opponent++) {
+        for (const opponent of activePlayerManager.getActivePlayers()) {
             if (opponent !== player) {
                 defeatCounts[opponent] = this.gameState.getDefeatCount(player, opponent);
             }
@@ -933,7 +935,7 @@ class SettlementModal {
         // Defeat统计
         const defeats = document.createElement('div');
         defeats.className = 'ranking-defeats';
-        for (let opponent = 1; opponent <= 4; opponent++) {
+        for (const opponent of activePlayerManager.getActivePlayers()) {
             if (opponent !== data.player) {
                 const count = document.createElement('span');
                 count.className = `defeat-count player-${opponent}-defeat`;

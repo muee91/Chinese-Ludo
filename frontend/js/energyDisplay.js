@@ -13,7 +13,7 @@ class EnergyDisplay {
      */
     init() {
         // 为每个玩家创建积分条
-        for (let player = 1; player <= 4; player++) {
+        for (let player = 1; player <= 6; player++) {
             this.createEnergyBar(player);
         }
     }
@@ -40,14 +40,14 @@ class EnergyDisplay {
         }
 
         // 移动端：根据玩家位置添加
-        if (player === 1 || player === 4) {
+        if (player === 1 || player === 4 || player === 6) {
             const mobilePlayerInfo = document.querySelector(`.players-top .player-${player}-info`);
             if (mobilePlayerInfo) {
                 const energyBarHTML = this.createEnergyBarHTML(player, 'mobile-top');
                 mobilePlayerInfo.insertAdjacentHTML('beforeend', energyBarHTML);
             }
-        } else if (player === 2) {
-            const mobilePlayerInfo = document.querySelector(`.players-bottom .player-2-info`);
+        } else if (player === 2 || player === 5) {
+            const mobilePlayerInfo = document.querySelector(`.players-bottom .player-${player}-info`);
             if (mobilePlayerInfo) {
                 const energyBarHTML = this.createEnergyBarHTML(player, 'mobile-bottom-2');
                 mobilePlayerInfo.insertAdjacentHTML('beforeend', energyBarHTML);
@@ -430,7 +430,7 @@ class EnergyDisplay {
      * 清理所有积分条
      */
     destroy() {
-        for (let player = 1; player <= 4; player++) {
+        for (let player = 1; player <= 6; player++) {
             const elements = document.querySelectorAll(`.energy-bar-wrapper`);
             elements.forEach(el => {
                 if (el.parentNode) {
