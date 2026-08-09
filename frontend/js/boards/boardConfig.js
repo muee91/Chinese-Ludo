@@ -69,8 +69,9 @@ const classic6Visual = Object.freeze({
     // 让 78 格外环在和 classic4 相同的桌面视口中保持接近的视觉直径。
     viewBoxRadius: 160,
     // 六人外环更密集，沿用四人版的视觉重量而不是把 78 格压成细小色点。
-    ringCellScale: 0.90,
-    laneCellScale: 0.92,
+    // 六人公共环道格子更密集，适度放大格面，保证颜色和箭头在桌面/平板上可辨识。
+    ringCellScale: 1.08,
+    laneCellScale: 1.08,
     // 基地和棋子需要与 classic4 的 4 架棋子保持同一可读尺寸。
     baseScale: 1.40,
     chessScale: 0.56,

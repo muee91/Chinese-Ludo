@@ -375,6 +375,30 @@ export function checkStackInJumpPath(currentPlayer, startPosition, endPosition, 
     return null;
 }
 
+// 飞棋是跨越公共环道的捷径，路径上的叠子（包括当前玩家自己的同色叠子）
+// 都会使捷径失效，改走普通跳子。与普通行进路径不同，这里必须检查所有玩家。
+export function checkStackInFlightPath(currentPlayer, startPosition, endPosition, gameState) {
+    if (startPosition <= 0 || endPosition <= 0) return null;
+
+    const minPos = Math.min(startPosition, endPosition);
+    const maxPos = Math.max(startPosition, endPosition);
+    for (let position = minPos + 1; position < maxPos; position++) {
+        const absolutePos = getAbsolutePosition(currentPlayer, position);
+        const stackInfo = isStackAtAbsolutePosition(absolutePos, gameState);
+        if (stackInfo) {
+            return {
+                hasStack: true,
+                stackPosition: position,
+                stackAbsolutePosition: absolutePos,
+                stackPlayer: stackInfo.player,
+                stackInfo
+            };
+        }
+    }
+
+    return null;
+}
+
 export const utils = {
     isJumpPoint,
     getNextJumpPoint,
@@ -388,6 +412,7 @@ export const utils = {
     isStackAtAbsolutePosition,
     checkStackInPath,
     checkStackInJumpPath,
+    checkStackInFlightPath,
     hasOtherPlayerChessAtPosition,
     getEnemyChessCountAtPosition
 };

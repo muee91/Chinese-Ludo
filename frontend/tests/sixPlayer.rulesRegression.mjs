@@ -200,7 +200,30 @@ const directFlight = await page.evaluate(async () => {
 });
 assert(directFlight === 56, `direct flight should end at 56, got ${directFlight}`);
 
-// 6) 对家 P2 在交叉格 79 形成叠机：P5 直接落 26 时飞行被阻挡，降级为普通跳 26→32。
+// 6) 同色叠子位于 26→50 捷径路径：标准模式必须取消飞行，降级为普通跳 26→32。
+await resetScenario(5, false);
+const sameColorFlightBlock = await page.evaluate(async () => {
+  const game = window.gameInstance;
+  const gs = game.gameState;
+  gs.playerChess[5][0].position = 26;
+  gs.playerChess[5][1].position = 30;
+  gs.playerChess[5][2].position = 30;
+  for (const index of [0, 1, 2]) {
+    gs.playerChess[5][index].lastLandPos = index + 1;
+    game.animation.updateChessPosition(5, index, null, false);
+  }
+  const pathStack = game.utils.checkStackInFlightPath(5, 26, 50, gs);
+  await game.chessPiece.handleSpecialPositions(5, 0, 26);
+  return {
+    pathStack: pathStack?.stackPosition || null,
+    mover: gs.playerChess[5][0].position,
+    blockers: [gs.playerChess[5][1].position, gs.playerChess[5][2].position]
+  };
+});
+assert(sameColorFlightBlock.pathStack === 30 && sameColorFlightBlock.mover === 32 && sameColorFlightBlock.blockers.every(position => position === 30),
+  `same-color flight block must degrade to jump: ${JSON.stringify(sameColorFlightBlock)}`);
+
+// 7) 对家 P2 在交叉格 79 形成叠机：P5 直接落 26 时飞行被阻挡，降级为普通跳 26→32。
 await resetScenario(5, false);
 const blockedDirectFlight = await page.evaluate(async () => {
   const game = window.gameInstance;
@@ -223,7 +246,7 @@ const blockedDirectFlight = await page.evaluate(async () => {
 assert(blockedDirectFlight.mover === 32 && blockedDirectFlight.blockers.every(position => position === 79),
   `blocked direct flight must degrade to jump: ${JSON.stringify(blockedDirectFlight)}`);
 
-// 7) 前置格 20 遇到同一交叉叠机：只做普通跳 20→26，不执行飞行。
+// 8) 前置格 20 遇到同一交叉叠机：只做普通跳 20→26，不执行飞行。
 await resetScenario(5, false);
 const blockedPredecessor = await page.evaluate(async () => {
   const game = window.gameInstance;
@@ -239,7 +262,7 @@ const blockedPredecessor = await page.evaluate(async () => {
 });
 assert(blockedPredecessor === 26, `blocked predecessor should stop at 26, got ${blockedPredecessor}`);
 
-// 8) 欢乐模式忽略叠机阻挡与 beat：P5 仍 26→50→56，P2 两枚棋子保留在 79。
+// 9) 欢乐模式忽略叠机阻挡与 beat：P5 仍 26→50→56，P2 两枚棋子保留在 79。
 await resetScenario(5, true);
 const happyFlight = await page.evaluate(async () => {
   const game = window.gameInstance;
@@ -259,7 +282,7 @@ const happyFlight = await page.evaluate(async () => {
 assert(happyFlight.mover === 56 && happyFlight.blockers.every(position => position === 79),
   `happy mode should ignore flight blocking/beat: ${JSON.stringify(happyFlight)}`);
 
-// 9) 终点必须精确到达：80 + 2 => 完成于 82。
+// 10) 终点必须精确到达：80 + 2 => 完成于 82。
 await resetScenario(5, false);
 await page.evaluate(async () => {
   const game = window.gameInstance;

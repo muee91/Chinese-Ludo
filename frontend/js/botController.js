@@ -1335,20 +1335,18 @@ class BotController {
         }
 
         // 检查特殊飞棋点
-        if (targetPosition === 14 || targetPosition === 18) {
+        const board = gameState.getBoardDefinition();
+        if (targetPosition === board.flightPredecessor || targetPosition === board.flightPoint) {
             const isHappyMode = gameState.isHappyMode();
             // 检查位置53是否有对家叠子（欢乐模式不阻挡）
             const stackCheckResult = isHappyMode ? { hasStack: false } : this.utils.hasOpponentStackAtPosition53(player, gameState);
             if (!stackCheckResult.hasStack) {
-                let flyTarget;
-                if (targetPosition === 14) {
-                    flyTarget = 30; // 14->18->30
-                } else if (targetPosition === 18) {
-                    flyTarget = 34; // 18->30->34
-                }
+                const flyTarget = board.flightTarget;
 
                 // 检查飞棋路径中是否有叠子阻挡（欢乐模式不阻挡）
-                const flyPathStack = !isHappyMode ? this.utils.checkStackInJumpPath(player, targetPosition, flyTarget, gameState) : null;
+                const flyPathStack = !isHappyMode
+                    ? this.utils.checkStackInFlightPath(player, board.flightPoint, flyTarget, gameState)
+                    : null;
                 if (flyPathStack && flyPathStack.hasStack) {
                     // 飞棋路径被叠子阻挡，无法飞棋，按普通跳子处理
                     console.log(`[飞棋检测] 飞棋路径被叠子阻挡，无法飞棋，按普通跳子处理`);

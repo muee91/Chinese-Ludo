@@ -1064,6 +1064,7 @@ class ChessPiece {
      * 处理特殊位置（起跳点和飞棋点）
      */
     async handleSpecialPositions(player, chessIndex, position) {
+        const board = getCurrentBoardDefinition();
         // 检查终点航道交叉点是否有对家叠子，如果有则影响飞棋和跳子行为
         const stackCheckResult = this.utils.hasOpponentStackAtPosition53(player, this.gameState);
         // 欢乐模式：不检查叠子阻挡，飞棋跳子不受限制
@@ -1071,44 +1072,49 @@ class ChessPiece {
             stackCheckResult.hasStack = false;
         }
         const hasOpponentStackAt53 = stackCheckResult.hasStack;
+        // 飞棋路径上的叠子（包括当前玩家自己的同色叠子）会取消捷径。
+        const flightPathStack = !this.gameState.isHappyMode()
+            ? this.utils.checkStackInFlightPath(player, board.flightPoint, board.flightTarget, this.gameState)
+            : null;
+        const hasFlightPathStack = Boolean(flightPathStack?.hasStack);
 
         // 检查是否为特殊飞棋点
-        if (position === getCurrentBoardDefinition().flightPredecessor) {
-            if (hasOpponentStackAt53) {
+        if (position === board.flightPredecessor) {
+            if (hasOpponentStackAt53 || hasFlightPathStack) {
                 // console.log(`棋子到达位置14，但终点航道交叉点有对家叠子，降级执行正常跳子到18`);
 
                 // 提示飞棋被阻挡（非回放模式才添加）
                 if (!this._isNetworkReplayMode) {
-                    const opponentPlayer = this.utils.getOpponentPlayer(player);
-                    gameInfo.addStackBlock(player, opponentPlayer);
+                    const blockingPlayer = flightPathStack?.stackPlayer || this.utils.getOpponentPlayer(player);
+                    gameInfo.addStackBlock(player, blockingPlayer);
                 }
 
                 // 直接调用标准的 animateJump，它会自动处理：
                 // 1. 路径中是否有叠子阻挡
                 // 2. 终点是否有叠子阻挡
                 // 3. 起跳点和落点处的击败检测
-                await this.animation.animateJump(player, chessIndex, getCurrentBoardDefinition().flightPoint);
+                await this.animation.animateJump(player, chessIndex, board.flightPoint);
 
                 // 如果成功跳到了18，检查是否在18处形成叠子
                 const chess = this.gameState.playerChess[player][chessIndex];
-                if (chess.position === getCurrentBoardDefinition().flightPoint) {
-                    this.checkStackFormation(player, getCurrentBoardDefinition().flightPoint);
+                if (chess.position === board.flightPoint) {
+                    this.checkStackFormation(player, board.flightPoint);
                 }
             } else {
                 // console.log(`棋子到达位置14，先执行跳子到18，再执行飞棋到30`);
 
                 // 使用animateJump来执行14->18的跳跃，这样会应用正确的时序
-                await this.animation.animateJump(player, chessIndex, getCurrentBoardDefinition().flightPoint);
+                await this.animation.animateJump(player, chessIndex, board.flightPoint);
                 const chess = this.gameState.playerChess[player][chessIndex];
-                if (chess.position === getCurrentBoardDefinition().flightPoint) {
+                if (chess.position === board.flightPoint) {
                     // 再执行飞棋到30
-                    await this.performFlyingChess(player, chessIndex, getCurrentBoardDefinition().flightTarget, true, true, true);
+                    await this.performFlyingChess(player, chessIndex, board.flightTarget, true, true, true);
                 }
             }
             return true; // 触发了特殊动作
-        } else if (position === getCurrentBoardDefinition().flightPoint) {
+        } else if (position === board.flightPoint) {
             // 先检查位置18是否有其他玩家的棋子需要beat（飞前撞机）
-            const flightPointAbsolutePosition = this.utils.getAbsolutePosition(player, getCurrentBoardDefinition().flightPoint);
+            const flightPointAbsolutePosition = this.utils.getAbsolutePosition(player, board.flightPoint);
             const isRemoteDiceMove = this.gameState.isRemoteDice === true;
             const prevAnimationGuard = this.gameState.isInChessAnimation;
             this.gameState.isInChessAnimation = true;
@@ -1128,31 +1134,31 @@ class ChessPiece {
                 this.gameState.isInChessAnimation = prevAnimationGuard;
             }
 
-            if (hasOpponentStackAt53) {
+            if (hasOpponentStackAt53 || hasFlightPathStack) {
                 // console.log(`棋子到达位置18，但终点航道交叉点有对家叠子，降级执行正常跳子到22`);
 
                 // 提示飞棋被阻挡（非回放模式）
                 if (!this._isNetworkReplayMode) {
-                    const opponentPlayer = this.utils.getOpponentPlayer(player);
-                    gameInfo.addStackBlock(player, opponentPlayer);
+                    const blockingPlayer = flightPathStack?.stackPlayer || this.utils.getOpponentPlayer(player);
+                    gameInfo.addStackBlock(player, blockingPlayer);
                 }
 
                 // 直接调用标准的 animateJump，处理所有路径检测和击败检测
-                await this.animation.animateJump(player, chessIndex, this.utils.getNextJumpPoint(getCurrentBoardDefinition().flightPoint));
+                await this.animation.animateJump(player, chessIndex, this.utils.getNextJumpPoint(board.flightPoint));
 
                 // 如果成功跳到了22，检查是否在22处形成叠子
                 const chess = this.gameState.playerChess[player][chessIndex];
-                if (chess.position === this.utils.getNextJumpPoint(getCurrentBoardDefinition().flightPoint)) {
+                if (chess.position === this.utils.getNextJumpPoint(board.flightPoint)) {
                     this.checkStackFormation(player, chess.position);
                 }
             } else {
                 // console.log(`棋子到达位置18，先执行飞棋到30，再执行跳子到34`);
                 // 先执行飞棋到30（回放模式不添加信息）
-                await this.performFlyingChess(player, chessIndex, getCurrentBoardDefinition().flightTarget, true, true, !this._isNetworkReplayMode);
+                await this.performFlyingChess(player, chessIndex, board.flightTarget, true, true, !this._isNetworkReplayMode);
                 const chess = this.gameState.playerChess[player][chessIndex];
-                if (chess.position === getCurrentBoardDefinition().flightTarget) {
+                if (chess.position === board.flightTarget) {
                     // 再执行跳子到34
-                    await this.animation.animateJump(player, chessIndex, getCurrentBoardDefinition().flightPostJump);
+                    await this.animation.animateJump(player, chessIndex, board.flightPostJump);
                 }
             }
             return true; // 触发了特殊动作
@@ -1191,6 +1197,14 @@ class ChessPiece {
         // 检查终点航道交叉点是否有对家的叠子，如果有则无法飞棋
         // 欢乐模式：跳过叠子阻挡检测
         if (!this.gameState.isHappyMode()) {
+            const flightPathStack = this.utils.checkStackInFlightPath(player, chess.position, targetPosition, this.gameState);
+            if (flightPathStack?.hasStack) {
+                if (!this._isNetworkReplayMode) {
+                    gameInfo.addStackBlock(player, flightPathStack.stackPlayer);
+                }
+                console.log(`[飞棋阻挡] 飞行路径位置${flightPathStack.stackPosition}存在叠子，取消捷径`);
+                return false;
+            }
             const stackCheckResult = this.utils.hasOpponentStackAtPosition53(player, this.gameState);
             if (stackCheckResult.hasStack) {
                 // console.log(`[飞棋阻挡] 终点航道交叉点存在对家叠子，飞棋被阻挡，棋子停在起飞格`);
